@@ -1,0 +1,115 @@
+
+▌this codebase (empty for now is an attempt to create a quote engine. I use microvellum to draw my cabinetry  project and
+▌output repports that contains all the information to estimate the job very accurately.) I need a system that will analyze
+▌outputed repport from microvellum and create quotes for client. this should take in considerationa variety of factors like
+▌material and hardware cost, labor, machining and edbanding... Ican add more ressoures to help, at this stage I want you and
+▌I to explore ideas
+
+> Great—let’s shape a practical, flexible quote engine around your Microvellum reports. Below is a concise blueprint we can
+  iterate on, plus key questions to tailor it to your workflow.
+
+  Goals
+
+  - Turn Microvellum reports into accurate, explainable quotes.
+  - Factor in materials, hardware, machining, edgebanding, labor, install, overhead, margin, and tax.
+  - Keep rules configurable so you can calibrate over time.
+  - Produce a clean client-facing quote with optional alternates.
+
+  Expected Inputs
+
+  - Microvellum exports: likely CSV/Excel (cutlists, parts, hardware, edgeband edges, drilling/pockets, assemblies).
+  - Cost catalogs:
+      - Materials: price per sheet/area, sheet size, waste/yield.
+      - Edgeband: price per meter/roll, thickness/width, setup + per-meter time.
+      - Hardware: SKU mapping, unit price, package rounding, waste.
+      - Machine rates: CNC hourly, edge-bander hourly, saw hourly.
+      - Labor rates: assembly, finishing, install.
+  - Project configs: taxes, overhead, margin policy, delivery, install hours, rounding rules.
+
+  Cost Model (first pass)
+
+  - Panels/materials:
+      - Area-based: total area / sheet area / yield + waste% OR sheet-based with optimizer-style rounding.
+      - Add material-specific surcharges (grain-matched, HPL, veneer).
+  - Edgebanding:
+      - Sum linear length per band spec; cost = length × price + setup.
+      - Time = setup + length × time_per_meter; charge machine rate or labor.
+  - Machining:
+      - Drilling = holes × time_per_hole; pocketing = area × time_per_area; per-part setup options.
+      - Machine charge = machine_time × machine_rate.
+  - Hardware:
+      - Sum(qty × unit price) with min pack and waste.
+  - Assembly/finishing:
+      - Base hours per cabinet type + adders for drawers/doors/complexity.
+      - Finishing by area and finish system (stain, paint, clear).
+  - Install and logistics:
+      - Travel, onsite hours, per-cabinet install time, per-room adders.
+  - Overhead:
+      - As % of labor/machine or per-project flat.
+  - Margin and tax:
+      - Target margin per category or blended; regional tax rules.
+  - Rounding:
+      - Per line or total (nearest $1/$5/$10) with psychological pricing options.
+
+  Architecture
+
+  - Importers: adapters for Microvellum CSV/Excel schemas.
+  - Normalizer: map MV fields to a canonical model (materials, parts, edges, ops, hardware, assemblies/rooms).
+  - Mapper: configurable mapping from MV text to your catalogs (e.g., “White Mel 3/4” → Material: MEL-19MM-WHITE).
+  - Rules Engine: YAML/JSON formulas referencing normalized fields, with per-project overrides.
+  - Calculators: category-specific calculators (materials, edgeband, machining, hardware, labor).
+  - Aggregator: roll up by cabinet/room/project; produce cost breakdown and diagnostics.
+  - Output:
+      - Internal: detailed breakdown CSV/Excel/JSON.
+      - Client: clean quote PDF/Excel with optional alternates and inclusions/exclusions.
+
+  Data Model (core entities)
+
+  - Project: client info, site, taxes, margins, currency, date.
+  - Assembly/Cabinet: type, dimensions, room, finish, count.
+  - Part: material, thickness, L×W, qty, edge specs, grain.
+  - Edge: edge code, length, band type/width/thickness.
+  - Operation: type (drill, pocket, dado, route), counts/areas.
+  - HardwareItem: code, description, qty, unit price, package size.
+  - Catalogs: materials, bands, hardware SKUs, machine rates, labor rates with effective dates.
+  - Rules: cost/time formulas and coefficients.
+
+  Workflow
+
+  - Import MV export → Normalize → Map to catalogs → Apply rules → Compute category costs and times → Apply overhead, margin,
+  tax → Generate outputs.
+  - Scenario support: tweak waste, rates, or substitutions and compare versions.
+
+  Open Questions
+
+  - Which MV report formats do you use (CSV, Excel, XML)? Can you share a redacted sample?
+  - What columns do you get for edgebanding (edge flags, lengths, band type)?
+  - Do you get operation detail (holes, pockets, toolpaths) or just totals?
+  - Units (imperial/metric)? Typical sheet sizes?
+  - Existing price lists for materials/hardware? How often do prices change?
+  - Labor strategy: time standards available or start with heuristics we’ll calibrate?
+  - Do you include install and delivery? How should we model them?
+  - Preferred markup policy (margin by category vs blended)? Rounding rules?
+  - Output preference: Excel and PDF? Group by room or by cabinet type?
+  - Tech preference: CLI-only initially, or a small local web UI later?
+
+  MVP Proposal
+
+  - CLI that reads one MV CSV/Excel, one YAML config for catalogs + rules.
+  - Implements materials, edgebanding, hardware, basic machining, assembly labor.
+  - Outputs:
+      - Detailed breakdown CSV (per cabinet/room).
+      - Client quote Excel (summary + options).
+  - Configurable coefficients for quick calibration.
+
+  Implementation Plan (phased)
+
+  - Gather sample exports and define the canonical schema.
+  - Define catalogs and mapping YAMLs.
+  - Implement importer/normalizer for your export.
+  - Build calculators and rule definitions.
+  - Produce breakdown and quote outputs.
+  - Validate with one recent project and calibrate.
+
+  If you can share a redacted sample export and a simple materials/hardware price list (even rough), I’ll scaffold the repo
+  with the schema, config templates, and the first parser. Would you prefer a Python-based CLI for the MVP?

@@ -1,0 +1,66 @@
+defaults:
+  area_factor_h_per_m2: 1.2   # baseline hours per m² of (H×W)
+  # complexity multipliers apply if substring appears in product description
+complexity:
+  overhead: 1.2
+  sink: 1.3
+  blind corner: 1.4
+  liftup door cabinet: 1.3
+
+adders:
+  drawer_h: 0.2
+  door_h: 0.2
+  adj_shelf_h: 0.1
+  fixed_shelf_h: 0.2
+
+# Minutes-based adders (preferred). If set, calculators use these instead of hour adders above.
+minutes_adders:
+  drawer: 20
+  inner_drawer: 20
+  hinge: 1
+  foot: 1
+  bin: 25
+  hinges_per_door: 2
+
+install_minutes_adders:
+  drawer: 5
+  inner_drawer: 5
+  hinge: 2
+  foot: 1
+  bin: 10
+
+types:
+  "Base 2 Drawer":
+    area_factor_h_per_m2: 1.4
+  "Base 1 Drawer":
+    area_factor_h_per_m2: 1.3
+  "Upper 1 Door":
+    area_factor_h_per_m2: 1.0
+  "Pantry with 5 Inner Drawers":
+    area_factor_h_per_m2: 1.8
+  "Liftup Door Cabinet":
+    area_factor_h_per_m2: 1.5
+  "Base 2 Door":
+    area_factor_h_per_m2: 1.2
+
+# Install rules mirror assembly but with different base factors
+install:
+  defaults:
+    area_factor_h_per_m2: 0.9
+  complexity:
+    overhead: 1.2
+    sink: 1.3
+    blind corner: 1.4
+  types:
+    "Base 2 Drawer":
+      area_factor_h_per_m2: 0.9
+    "Base 1 Drawer":
+      area_factor_h_per_m2: 0.85
+    "Upper 1 Door":
+      area_factor_h_per_m2: 0.7
+    "Pantry with 5 Inner Drawers":
+      area_factor_h_per_m2: 1.1
+    "Liftup Door Cabinet":
+      area_factor_h_per_m2: 1.0
+    "Base 2 Door":
+      area_factor_h_per_m2: 0.8

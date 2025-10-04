@@ -1,0 +1,2245 @@
+ACC.algoliaSearch = {
+  _autoload: [
+    'bindAutoComplete',
+    'bindProductAddToCart',
+    ['bindFilterItem', $('.ls-al-product-category-page').length > 0 ||  $('.ls-al-product-search-page').length > 0],
+    ['initFrequentlyBoughtTogether', $('.product-component.product-size-xl-container').length > 0],
+    ['bindCartProductBundle', $('.product-recommendation-component').length > 0]
+  ],
+  searchBaseUrl: '/search',
+  stateCheckUrl: '/search/availableByState/',
+  allCategoryRedirect: '/c/LSG_TYPE',
+  recentSearchesPrefix: 'AUTOCOMPLETE_RECENT_SEARCHES',
+  recentSearchesKey: 'RECENT_SEARCH',
+  recentViewedKey: 'RECENT_VIEWED',
+  hierarchicalMenuKey: 'categoryPage.lvl0',
+  refinementListKey: 'refinementList',
+  suggestionItem: true,
+  algoliaDebounceTime: 300,
+  isLoggedIn: $('.js-header-session-timeout').length > 0,
+  isLicenseUser: $('.buy-license-products').length > 0,
+  defaultCurrency: 'AUD',
+  facetItemsSize: 5,
+  minQueryChar: 3,
+  itemList: null,
+  isCategoryPage: $('.ls-al-product-category-page').length > 0,
+  categorySystem: $('.ls-al-product-category-page').length > 0 ? $('.ls-al-product-category-page').data('category-system') : null,
+  toggleRefinementsAttributes: ['isObsolete', 'productKit'],
+  frequentlyBoughtLimit: 5,
+  productBundlesLimit: 5,
+  cachingTTL: parseInt(ACC.config.algoliaCacheTTL, 10) || 600, // in second, default 10 mins
+  maxRecommendationObject: 10,
+  productType: {
+    B2B: 'BACK_TO_BACK',
+    MTO: 'MAKE_TO_ORDER'
+  },
+  referenceType: {
+    replacement: 'REPLACEMENT'
+  },
+  stock: {
+    inStock: 'inStock',
+    FORCE_IN_STOCK: 'FORCE_IN_STOCK'
+  },
+  categoryType: {
+    CATEGORY: 'CATEGORY',
+    BRAND: 'BRAND',
+    PROMOTION: 'PROMOTION',
+    TYPE: 'TYPE',
+    GROUP: 'GROUP',
+    ALL_CATEGORY: 'SUPPER_CATRGORY'
+  },
+  facetKey: {
+    BRAND: 'brands',
+    PROMOTION: 'promotions',
+    DEFAULT: 'categories'
+  },
+  routeStateSeparator: '-',
+  routeStateReplacer: '~',
+  routeStateSpacer: ' ',
+  valueSeparator: ';',
+  byPassRefinement: ['q', 'kit', 'obsolete', 'query', 'hitsPerPage', 'sortBy', 'category', 'suggested-category'],
+  refinementMapping: {
+    installationDimensionsMinWidth: 'min-width',
+    installationDimensionsNominalLength: 'nominal-length',
+    installationDimensionsSize: 'installation-size',
+    material: 'material',
+    powerVoltage: 'voltage',
+    powerWattage: 'wattage',
+    productClass: 'product-class',
+    productDimensionsGaugeInMetric: 'gauge',
+    productDimensionsHeight: 'height',
+    productDimensionsSize: 'size',
+    productDimensionsThickness: 'thickness',
+    productDimensionsWeave: 'weave',
+    productDimensionslengthInmetric: 'length',
+    productIndicators: 'indicators',
+    productType: 'product-type',
+    promotions: 'promotion',
+    specialtyFeaturesAdjustableRange: 'adjustable-range',
+    specialtyFeaturesAngle: 'angle',
+    specialtyFeaturesBalanceNumber: 'balance',
+    specialtyFeaturesClosedDimensions: 'closed-dimensions',
+    specialtyFeaturesCylindertype: 'cylinder-type',
+    specialtyFeaturesExtendedDimensions: 'extended-dimensions',
+    specialtyFeaturesFixingType: 'fixing-type',
+    specialtyFeaturesGrit: 'grit',
+    specialtyFeaturesHand: 'hand',
+    specialtyFeaturesHeadstyle: 'head-style',
+    specialtyFeaturesKeynumber: 'key-number',
+    specialtyFeaturesLockbackset: 'lock-backset',
+    specialtyFeaturesLockingFunction: 'locking-function',
+    specialtyFeaturesNumberofblades: 'blades',
+    specialtyFeaturesShape: 'shape',
+    specialtyFeaturesSide: 'side',
+    specialtyFeaturesSpacing: 'spacing',
+    specialtyFeaturesSpringType: 'spring-type',
+    specialtyFeaturesTaphole: 'taphole',
+    LSFinish: 'finish',
+    capacityLoad: 'load-capacity',
+    brands: 'brand',
+    installationDimensionsDiameter: 'diameter',
+    capacityVolume: 'volume',
+    installationDimensionsHoleCenter: 'ctc',
+    installationDimensionsMinHeight: 'min-height',
+    installationDimensionsMinLength: 'min-length',
+    installationDimensionsMinDepth: 'min-depth',
+    installationDimensionsMaxDepth: 'max-depth',
+    installationDimensionsMaxHeight: 'max-height',
+    colorGroup: 'color',
+    installationDimensionsHoleSize: 'hole-size',
+  },
+  recommendationStarted: false,
+  hierarchicalMenuDefaultState: null,
+  recommendationList: [],
+  createBrowserLocalStorageCache: function(options) {
+    const namespaceKey = `algoliasearch-fbt-${options.key}`;
+    // eslint-disable-next-line functional/no-let
+    let storage;
+    const getStorage = () => {
+      if (storage === undefined) {
+        storage = options.localStorage || window.localStorage;
+      }
+      return storage;
+    };
+    const getNamespace = () => {
+      return JSON.parse(getStorage().getItem(namespaceKey) || '{}');
+    };
+    const setNamespace = (namespace) => {
+      getStorage().setItem(namespaceKey, JSON.stringify(namespace));
+    };
+    const removeOutdatedCacheItems = () => {
+      const timeToLive = options.timeToLive ? options.timeToLive * 1000 : null;
+      const namespace = getNamespace();
+      const filteredNamespaceWithoutOldFormattedCacheItems = Object.fromEntries(Object.entries(namespace).filter(([, cacheItem]) => {
+        return cacheItem.timestamp !== undefined;
+      }));
+      setNamespace(filteredNamespaceWithoutOldFormattedCacheItems);
+      if (!timeToLive)
+        return;
+      const filteredNamespaceWithoutExpiredItems = Object.fromEntries(Object.entries(filteredNamespaceWithoutOldFormattedCacheItems).filter(([, cacheItem]) => {
+        const currentTimestamp = new Date().getTime();
+        const isExpired = cacheItem.timestamp + timeToLive < currentTimestamp;
+        return !isExpired;
+      }));
+      setNamespace(filteredNamespaceWithoutExpiredItems);
+    };
+    return {
+      get(key, defaultValue, events = {
+        miss: () => Promise.resolve(),
+      }) {
+        return Promise.resolve()
+          .then(() => {
+            removeOutdatedCacheItems();
+            const keyAsString = JSON.stringify(key);
+            return getNamespace()[keyAsString];
+          })
+          .then(value => {
+            return Promise.all([value ? value.value : defaultValue(), value !== undefined]);
+          })
+          .then(([value, exists]) => {
+            return Promise.all([value, exists || events.miss(value)]);
+          })
+          .then(([value]) => value);
+      },
+      set(key, value) {
+        return Promise.resolve().then(() => {
+          const namespace = getNamespace();
+          // eslint-disable-next-line functional/immutable-data
+          namespace[JSON.stringify(key)] = {
+            timestamp: new Date().getTime(),
+            value,
+          };
+          getStorage().setItem(namespaceKey, JSON.stringify(namespace));
+          return value;
+        });
+      },
+      delete(key) {
+        return Promise.resolve().then(() => {
+          const namespace = getNamespace();
+          // eslint-disable-next-line functional/immutable-data
+          delete namespace[JSON.stringify(key)];
+          getStorage().setItem(namespaceKey, JSON.stringify(namespace));
+        });
+      },
+      clear() {
+        return Promise.resolve().then(() => {
+          getStorage().removeItem(namespaceKey);
+        });
+      },
+    }
+  },
+  bindAutoComplete: function () {
+    const searchClient = window.algoliasearch(ACC.config.algoliaApplicationId, ACC.config.algoliaSearchKey);
+    const { autocomplete, getAlgoliaResults } = window['@algolia/autocomplete-js'];
+    const { createQuerySuggestionsPlugin } = window['@algolia/autocomplete-plugin-query-suggestions'];
+    const { createLocalStorageRecentSearchesPlugin, search: recentSearch } = window['@algolia/autocomplete-plugin-recent-searches'];
+    const historyRouter = instantsearch.routers.history({ writeDelay: ACC.algoliaSearch.algoliaDebounceTime });
+    const categoryPage = $('.ls-al-product-category-page')?.data('category-name') || undefined;
+    const categoryType = $('.ls-al-product-category-page').data('category-type') || undefined;
+    const pageSize = ACC.algoliaSearch.isCategoryPage ? $('.ls-al-product-category-page').data('page-size') : $('.ls-al-product-search-page').data('page-size');
+    const sortData = ACC.algoliaSearch.isCategoryPage ? $('.ls-al-product-category-page').data('sort') : $('.ls-al-product-search-page').data('sort');
+    const pageSizeOptions = pageSize?.map((num, index) => {
+      return {
+        label: num.toString(),
+        value: num,
+        default: index === 0
+      };
+    });
+    const sortOptions = sortData?.split(',').map(sort => {
+      const sortValue = sort.split(':');
+      return {
+        label: sortValue.shift() || '',
+        value: sortValue.pop() || ''
+      };
+    });
+    window.aa('init', {
+      appId: ACC.config.algoliaApplicationId,
+      apiKey: ACC.config.algoliaSearchKey,
+    });
+    let userToken = ACC.algoliaEvent.getAuthenticatedUserToken();
+    if( userToken !== "") {
+      window.aa("setUserToken", userToken);
+      window.aa("setAuthenticatedUserToken", userToken);
+    }
+    const alSearch = instantsearch({
+      indexName: ACC.config.algoliaIndex,
+      searchClient,
+      routing: {
+        router: historyRouter,
+        stateMapping: {
+          stateToRoute(uiState) {
+            return ACC.algoliaSearch.buildRouteFromState(uiState);
+          },
+          routeToState(routeState) {
+            return ACC.algoliaSearch.transformStateFromRoute(routeState);
+          }
+        }
+      },
+      insights: {
+        insightsClient: window.aa,
+        insightsInitParams: {
+          useCookie: true
+        }
+      }
+    });
+    function getInstantSearchUiState() {
+      return historyRouter.read() || {};
+    }
+    function getInstantSearchUrl(indexUiState) {
+      const selectedCategory = $("#ls-select-search-by").data("category-name");
+      const hierarchicalMenu = indexUiState.hierarchicalMenu?.[ACC.algoliaSearch.hierarchicalMenuKey];
+      const inlineCategory = indexUiState.menu?.categories;
+      const state = inlineCategory ? {
+        ...indexUiState,
+        hierarchicalMenu: {
+          [ACC.algoliaSearch.hierarchicalMenuKey]: []
+        },
+        menu: {
+          ...indexUiState.menu
+        }
+      } : {
+        ...indexUiState,
+        hierarchicalMenu: {
+          [ACC.algoliaSearch.hierarchicalMenuKey]: hierarchicalMenu?.length > 0 && hierarchicalMenu.slice().pop() ?
+            indexUiState.hierarchicalMenu[ACC.algoliaSearch.hierarchicalMenuKey] : selectedCategory ? [selectedCategory] : []
+        }
+      }
+      const url = alSearch.createURL({
+        [ACC.config.algoliaIndex]: state
+      });
+      const aUrl = url.split('?').pop();
+      return `${ACC.algoliaSearch.searchBaseUrl}?${aUrl}`;
+    }
+
+    function getItemUrl({ query, category, inlineCategory }) {
+      const state = inlineCategory ? { query, menu: { categories: inlineCategory } } : { query, hierarchicalMenu: { [ACC.algoliaSearch.hierarchicalMenuKey]: category ? [category] : [] } };
+      return getInstantSearchUrl(state);
+    }
+    function isModifierEvent(event) {
+      const isMiddleClick = event.button === 1;
+
+      return (
+        isMiddleClick ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      );
+    }
+    function debouncePromise(fn, time) {
+      let timer = undefined;
+      return function debounced(...args) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        return new Promise((resolve) => {
+          timer = setTimeout(() => resolve(fn(...args)), time);
+        });
+      };
+    }
+    const debounced = debouncePromise((items) => Promise.resolve(items), ACC.algoliaSearch.algoliaDebounceTime);
+    function onSelect({ setIsOpen, setQuery, event, query, category, inlineCategory }) {
+      if (isModifierEvent(event)) {
+        return;
+      }
+      setQuery(query);
+      setIsOpen(false);
+    }
+    const searchPageState = getInstantSearchUiState();
+    if ($('.ls-al-product-search-page').length > 0 || ACC.algoliaSearch.isCategoryPage) {
+      sessionStorage.setItem("algolia-search", "true");
+      const virtualSearchBox = instantsearch.connectors.connectSearchBox(() => {});
+      const customHitsPerPage = instantsearch.connectors.connectHitsPerPage(
+        ACC.algoliaSearch.renderHitPerPage
+      );
+      const customSortBy = instantsearch.connectors.connectSortBy(ACC.algoliaSearch.renderSortBy);
+      const customBreadCrumb = instantsearch.connectors.connectBreadcrumb(ACC.algoliaSearch.renderBreadCrumb);
+      const algoliaWidgets = [
+        instantsearch.widgets.infiniteHits({
+          container: '#hits',
+          templates: {
+            empty(results, { html }) {
+              return html`<div class="ls-no-result-found-message">${ACC.algoliaSearch.getTranslation('noResult')}</div>`;
+            },
+            showMoreText(data, { html }) {
+              return html`<span>${ACC.algoliaSearch.getTranslation('showMore')}</span>`;
+            },
+            item(item, { html }) {
+              window.clearTimeout(window.priceTimeout);
+              window.priceTimeout = setTimeout(() => {
+                ACC.priceFactory.loadAsyncPrices();
+                ACC.algoliaSearch.updateMinOrder();
+                ACC.algoliaSearch.updateFilter();
+                ACC.algoliaSearch.updateLicenseByState();
+
+                if (ACC.algoliaSearch.isCategoryPage) {
+                  ACC.track.trackCategoryView();
+                } else {
+                  ACC.track.trackSearch();
+                }
+              }, ACC.algoliaSearch.algoliaDebounceTime);
+              const template = ACC.algoliaSearch.renderProductComponent(item, html);
+              // Write `queryID` to local storage
+              localStorage.setItem("queryID", item.__queryID);
+              return html`${template}`;
+            }
+          },
+          transformItems(items) {
+            ACC.algoliaSearch.itemList = items.slice();
+            return items;
+          },
+        }),
+        instantsearch.widgets.dynamicWidgets({
+          container: '#dynamic-list',
+          widgets: [
+            container => instantsearch.widgets.panel({
+              templates: {
+                header(_, { html }) {
+                  return html`<span>${ACC.algoliaSearch.getTranslation('availability')}<span class="facet-count"></span></span><span class="header-control ls-icon-plus"></span><span class="header-control icon-minus"></span>`;
+                }
+              }
+            }) (
+              instantsearch.widgets.toggleRefinement
+            )　({
+              container,
+              attribute: 'isObsolete',
+              cssClasses: {
+                root: 'product-availability-toggle'
+              },
+              templates: {
+                labelText(params) {
+                  return ACC.algoliaSearch.renderObsoleteToggleRefinementLabel(params);
+                }
+              }
+            }),
+            container => instantsearch.widgets.panel({
+              templates: {
+                header(_, { html }) {
+                  return html`<span>${ACC.algoliaSearch.getTranslation('productKit')}<span class="facet-count"></span></span><span class="header-control ls-icon-plus"></span><span class="header-control icon-minus"></span>`;
+                }
+              }
+            }) ( instantsearch.widgets.toggleRefinement )　({
+              container,
+              attribute: 'productKit',
+              templates: {
+                labelText(params) {
+                  return ACC.algoliaSearch.renderToggleRefinementLabel(params);
+                }
+              }
+            })
+          ],
+          fallbackWidget: ({ container, attribute }) =>
+            instantsearch.widgets.panel({
+              templates: {
+                header(options, { html }) {
+                  if (options.items?.length > 0) {
+                    return html`<span>${ACC.algoliaSearch.getTranslation(attribute)}<span class="facet-count"></span></span><span class="header-control ls-icon-plus"></span><span class="header-control icon-minus"></span>`;
+                  }
+                  return '';
+                }
+              }
+            })(
+              instantsearch.widgets.refinementList
+            )({
+              container,
+              attribute,
+              limit: ACC.algoliaSearch.facetItemsSize,
+              showMore: true,
+              templates: {
+                showMoreText(data, { html }) {
+                  const showMoreText = data.isShowingMore ? html`<span class="show-less">${ACC.algoliaSearch.getTranslation('seeLess')}</span><span class="ls-icon-arrow-three-up"></span>` : html`<span class="show-more">${ACC.algoliaSearch.getTranslation('seeMore')}</span><span class="ls-icon-arrow-three-down"></span>`;
+                  return html`<span class="show-more-text flexbox align-center">${showMoreText}</span>`;
+                }
+              },
+              transformItems(items) {
+                return items.map(item => ({
+                  ...item,
+                  highlighted: item.highlighted.toLowerCase(),
+                  label: item.label.toLowerCase()
+                }));
+              }
+            })
+        }),
+        instantsearch.widgets.clearRefinements({
+          container: '#clear-refinements',
+          templates: {
+            resetLabel({ hasRefinements }, { html }) {
+              const isTypeLinkRequired = ACC.algoliaSearch.isCategoryPage && categoryType !== ACC.algoliaSearch.categoryType.ALL_CATEGORY;
+              if (isTypeLinkRequired) {
+                return html`<a href="${ACC.algoliaSearch.allCategoryRedirect}" class="clear-refinement flexbox align-center"><span class="glyphicon glyphicon-repeat"></span><span>${ACC.algoliaSearch.getTranslation('clearRefinement')}</span></a>`;
+              }
+              return html`<div class="clear-refinement flexbox align-center"><span class="glyphicon glyphicon-repeat"></span><span>${ACC.algoliaSearch.getTranslation('clearRefinement')}</span></div>`;
+            }
+          },
+        }),
+        instantsearch.widgets.panel({
+          templates: {
+            header(options, { html }) {
+              if (options.items?.length > 0) {
+                return html`<span>${ACC.algoliaSearch.getTranslation('productCategory')}<span class="facet-count"></span></span><span class="header-control ls-icon-plus"></span><span class="header-control icon-minus"></span>`;
+              }
+              return '';
+            }
+          }
+        })(
+          instantsearch.widgets.hierarchicalMenu
+        )(
+          {
+            container: '#hierarchical-menu',
+            attributes: [
+              'categoryPage.lvl0',
+              'categoryPage.lvl1',
+              'categoryPage.lvl2',
+            ],
+            limit: 100
+          }
+        ),
+        instantsearch.widgets.currentRefinements({
+          container: '#current-refinements',
+          excludedAttributes: ['categories', 'query'],
+          transformItems(items, { results }) {
+            const isTypeRedirect = ACC.algoliaSearch.isCategoryPage && categoryType !== ACC.algoliaSearch.categoryType.ALL_CATEGORY;
+            if (isTypeRedirect && results && items?.length === 0) {
+              window.location.href = ACC.algoliaSearch.allCategoryRedirect;
+              return;
+            }
+            return items?.map(item => {
+              const newRefinements = item?.refinements?.map(refinement => {
+                return {
+                  ...refinement,
+                  label: ACC.algoliaSearch.toggleRefinementsAttributes.includes(refinement.attribute) ? ACC.algoliaSearch.getTranslation(`${refinement.attribute}.cr.${refinement.value}`) : refinement.label.toLowerCase()
+                }
+              });
+              return {
+                ...item,
+                refinements: newRefinements
+              };
+            });
+          }
+        }),
+        instantsearch.widgets.menu({
+          container: '#menu',
+          attribute: 'categories'
+        }),
+        customHitsPerPage({
+          container: document.querySelector('#hits-per-page'),
+          items: pageSizeOptions,
+          transformItems(items, { results }) {
+            return items.filter(item => item.value - (results?.hitsPerPage || 0) <= (results?.nbHits || 0));
+          }
+        }),
+        customSortBy({
+          container: document.querySelector('#sort-by'),
+          items: sortOptions
+        }),
+        customBreadCrumb({
+          container: document.querySelector('#breadcrumb'),
+          attributes: [
+            'categoryPage.lvl0',
+            'categoryPage.lvl1',
+            'categoryPage.lvl2'
+          ]
+        })
+      ];
+      if (!ACC.algoliaSearch.isCategoryPage) {
+        algoliaWidgets.push(
+          instantsearch.widgets.stats({
+            container: '#stats',
+            templates: {
+              text(data, { html }) {
+                window.clearTimeout(window.historyDebounceTime);
+                window.historyDebounceTime = window.setTimeout(() => {
+                  const state = getInstantSearchUiState();
+                  ACC.algoliaSearch.setShareSearchData(getInstantSearchUrl(state));
+                }, ACC.algoliaSearch.algoliaDebounceTime + 100);
+                return html`<div class="ls-results-title"><div id="ls-product-results-title">${ACC.algoliaSearch.getTranslation('searchNumberOfResult', [data.nbHits, data.query])}</div></div>`;
+              }
+            }
+          })
+        );
+        algoliaWidgets.push(virtualSearchBox({}));
+      } else {
+        if (categoryType !== ACC.algoliaSearch.categoryType.ALL_CATEGORY) {
+          const filterKey = ACC.algoliaSearch.facetKey[categoryType] || ACC.algoliaSearch.facetKey['DEFAULT'];
+          algoliaWidgets.push(
+            instantsearch.widgets.configure({
+              filters: `${filterKey}: "${categoryPage}"`
+            })
+          );
+        }
+        algoliaWidgets.push(
+          instantsearch.widgets.refinementList({
+            container: '#brand',
+            attribute: 'brands',
+            limit: ACC.algoliaSearch.facetItemsSize,
+            showMore: true,
+          })
+        );
+        algoliaWidgets.push(
+          instantsearch.widgets.refinementList({
+            container: '#promotions',
+            attribute: 'promotions',
+            limit: ACC.algoliaSearch.facetItemsSize,
+            showMore: true,
+          })
+        );
+      }
+      alSearch.addWidgets(algoliaWidgets);
+    }
+    alSearch.start();
+    ACC.algoliaSearch.setShareSearchData(getInstantSearchUrl(searchPageState));
+    if (ACC.algoliaSearch.isCategoryPage) {
+      const categoryType = $('.ls-al-product-category-page').data('category-type');
+      const categoryData = ACC.algoliaSearch.getCategorySystem();
+      if (categoryType === ACC.algoliaSearch.categoryType.BRAND || categoryType === ACC.algoliaSearch.categoryType.PROMOTION) {
+        ACC.algoliaSearch.setPreSelectRefinement(categoryData, categoryType, alSearch, searchPageState);
+      }
+    }
+    let skipInstantSearchUiStateUpdate = false;
+    const querySuggestionsPlugin = createQuerySuggestionsPlugin({
+      searchClient,
+      indexName: ACC.config.algoliaQuerySuggestionIndex,
+      getSearchParams() {
+        return {
+          hitsPerPage: 5
+        };
+      },
+      categoryAttribute: [
+        ACC.config.algoliaIndex,
+        "facets",
+        "exact_matches",
+        "categories"
+      ],
+      categoriesPerItem: 2,
+      transformSource({ source, onTapAhead }) {
+        const searchItems = source.getItems();
+        return {
+          ...source,
+          getItemUrl({ item }) {
+            return getItemUrl({
+              query: item.query || item.identifier,
+              category: undefined,
+              inlineCategory: item.__autocomplete_qsCategory
+            });
+          },
+          getItems(params) {
+            if (params.query && params.query?.length >= ACC.algoliaSearch.minQueryChar) {
+              return {
+                ...searchItems,
+                transformResponse({ hits }) {
+                  ACC.algoliaSearch.suggestionItem = hits.find(item => item.length > 0);
+                  return searchItems.transformResponse({ hits });
+                },
+              }
+            }
+            return [];
+          },
+          onSelect({ setIsOpen, setQuery, event, item }) {
+            onSelect({
+              setQuery,
+              setIsOpen,
+              event,
+              query: item.query || item.identifier,
+              category: undefined,
+              inlineCategory: item.__autocomplete_qsCategory
+            });
+          },
+          templates: {
+            ...source.templates,
+            header(params) {
+              const { html } = params
+              return html`<div class="ls-al-popular-search-header">${ACC.algoliaSearch.getTranslation('popularSearches')}</div>`;
+            },
+            item(params) {
+              const { item, html, components } = params;
+              const itemAttribute = item.query ? 'query' : 'identifier';
+              return html`
+                <div class="ls-al-suggestion-item">
+                  <a class="aa-ItemLink flexbox align-center"
+                     href="${getInstantSearchUrl({ query: item.query || item.identifier, menu: { categories: item.__autocomplete_qsCategory } })}">
+                    <div class="flexbox align-center">
+                      <div class="flexbox align-center suggestion-hit-item">
+                        <div class="suggestion-hits">
+                          <span class="glyphicon glyphicon-search"></span>
+                          <span>${components.Highlight({hit: item, attribute: itemAttribute})}</span>
+                        </div>
+                        ${item.__autocomplete_qsCategory ? html`<div class="suggestion-separator"></div><div class="suggestion-category">${ACC.algoliaSearch.getTranslation('inCategory', [item.__autocomplete_qsCategory])}</div>` : ''}
+                      </div>
+                    </div>
+                  </a>
+                </div>`;
+            },
+          },
+        };
+      }
+    });
+    const recentSearchesPlugin = createLocalStorageRecentSearchesPlugin({
+      key: ACC.algoliaSearch.recentSearchesKey,
+      limit: 5,
+      search(params) {
+        if (params.query && params.query?.length >= ACC.algoliaSearch.minQueryChar) {
+          return [];
+        }
+        return recentSearch({...params, query: ''});
+      },
+      transformSource({ source }) {
+        return {
+          ...source,
+          getItemUrl({ item }) {
+            return getItemUrl({
+              query: item.label,
+              category: item.category
+            });
+          },
+          onSelect({ setIsOpen, setQuery, item, event }) {
+            onSelect({
+              setQuery,
+              setIsOpen,
+              event,
+              query: item.label,
+              category: undefined,
+              inlineCategory: item.category
+            });
+          },
+          templates: {
+            header(params) {
+              const { html } = params
+              return html`<div class="ls-al-recent-search-header flexbox">
+                ${ACC.algoliaSearch.getTranslation('recentSearch')}
+              </div>`;
+            },
+            item(params) {
+              const { item, html } = params;
+
+              return html`<a class="aa-ItemLink ls-recent-search-item" href="${getInstantSearchUrl({ query: item.label, menu: { categories: item.category } })}">
+                ${source.templates.item(params).props.children}
+              </a>`;
+            }
+          },
+        };
+      }
+    });
+    const recentlyViewedItems = ACC.algoliaSearch.createLocalStorageRecentlyViewedItems({
+      key: ACC.algoliaSearch.recentViewedKey,
+      limit: 4,
+    });
+    const { setQuery } = autocomplete({
+      container: '#autocomplete',
+      placeholder: ACC.algoliaSearch.getTranslation('searchPlaceHolder'),
+      plugins: [recentSearchesPlugin, recentlyViewedItems, querySuggestionsPlugin],
+      openOnFocus: true,
+      detachedMediaQuery: 'none',
+      initialState: {
+        query: searchPageState.query || ''
+      },
+      onSubmit({ state }) {
+        const category = $("#ls-select-search-by").data("category-name");
+        const submitUrl = getItemUrl({ query: state.query, category });
+        window.location.assign(submitUrl);
+      },
+      getSources({ query }) {
+        if (!query || query.length < ACC.algoliaSearch.minQueryChar) {
+          return [];
+        }
+        const category = $("#ls-select-search-by").data("category-name");
+        const filterParams = {
+          hitsPerPage: 5,
+        }
+        if (category) {
+          filterParams['facetFilters'] = [`${ACC.algoliaSearch.hierarchicalMenuKey}:${category}`];
+        }
+        return debounced([
+          {
+            sourceId: 'products',
+            getItems() {
+              return getAlgoliaResults({
+                searchClient,
+                queries: [
+                  {
+                    indexName: ACC.config.algoliaIndex,
+                    query,
+                    params: filterParams
+                  },
+                ],
+                transformResponse({ hits }) {
+                  if (ACC.algoliaSearch.suggestionItem) {
+                    const newHits = [];
+                    hits.forEach(hit => {
+                      newHits.push(hit.slice(0, 3));
+                    })
+                    return newHits;
+                  }
+                  return hits;
+                },
+              });
+            },
+            onSelect(params) {
+              const { item, event, setIsOpen } = params;
+              if ($(event.target).closest('a').length > 0) {
+                recentlyViewedItems.data.addItem({
+                  id: item.objectID,
+                  label: item.identifier,
+                  image: item.image || '',
+                  url: item.url,
+                  thumbnailImage: item.thumbnailImage,
+                  objectID: item.objectID,
+                  isObsolete: item.isObsolete,
+                  isPromotion: item.isPromotion,
+                  goRewards: item.goRewards,
+                  yCArticleNo: item.yCArticleNo,
+                  summary: item.summary,
+                  lsproductType: item.lsproductType,
+                  isBundle: item.isBundle,
+                  promotions: item.promotions,
+                  promotionName: item.promotionName,
+                  promotionType: item.promotionType,
+                  defaultUnit: item.defaultUnit,
+                  baseUnit: item.baseUnit,
+                  isLicense: item.isLicense,
+                  addToCartDisabled: item.addToCartDisabled,
+                  productReferences: item.productReferences,
+                  stock: item.stock,
+                  uoms: item.uoms,
+                  getRoundingProfile: item.getRoundingProfile,
+                  displayCode: item.displayCode
+                });
+                setIsOpen(false);
+              }
+              setIsOpen(true);
+            },
+            templates: {
+              header(params) {
+                const { items, html } = params
+                if(items.length > 0) {
+                  return html`<div class="ls-al-autocomplete-header">${ACC.algoliaSearch.getTranslation('products')}</div>`;
+                }
+                return null;
+              },
+              item({ item, components, html }) {
+                window.clearTimeout(window.stateCheck);
+                window.stateCheck = setTimeout(() => {
+                  ACC.algoliaSearch.updateLicenseByState();
+                }, ACC.algoliaSearch.algoliaDebounceTime);
+                localStorage.setItem("queryID", item.__autocomplete_queryID);
+                const addToCart = ACC.algoliaSearch.renderPreSearchAddToCart(item, html);
+                const image = ACC.algoliaSearch.renderPreSearchImage(item, html);
+                return html`<section class="ls-al-search-item">
+                  <div class="product-component ls-al-product flexbox" data-state-check="${item.addToCartDisabled}" data-product-code="${item.objectID}">
+                    ${ACC.algoliaSearch.renderPreSearchPromotion(item, html)}
+                    ${ACC.algoliaSearch.renderPreSearchGoRewards(item, html)}
+                    ${image}
+                    <div class="product-info-container">
+                      <div class="product-name-container">
+                        <div class="product-display-name">
+                          <div class="product-pdp-name item-name text-left text-line3">
+                            <a href="${item.url}" target="_self">
+                              ${components.Highlight({ hit: item, attribute: 'identifier' })}
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="product-info-content-container flexbox">
+                        <div class="product-info-content flexbox flex-col ls-product-show-info flex-1">
+                          <div class="product-info-text-container">
+                            <div class="product-information-content flexbox flex-col">
+                              <div class="product-information-code flexbox">
+                                <span class="product-code-label">
+                                  ${ACC.algoliaSearch.getTranslation('productCode', [item.displayCode || item.yCArticleNo || item.objectID])}
+                                </span>
+                              </div>
+                              <div class="product-information-desc">${ACC.algoliaSearch.renderProductSummaryHTML(item, html)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      ${ACC.algoliaSearch.renderPreSearchProductNotes(item, html)}
+                    </div>
+                    <div class="product-actions">
+                      ${addToCart}
+                    </div>
+                  </div>
+                </section>`;
+              },
+              footer(params) {
+                const { state, html, items } = params
+                if (items.length > 0) {
+                  return html`<div class="ls-al-autocomplete-footer">
+                    <a href="${getInstantSearchUrl({ query: state.query, hierarchicalMenu: {[ACC.algoliaSearch.hierarchicalMenuKey]: []}})}" class="ls-secondary-button btn-show-all-results full-width">${ACC.algoliaSearch.getTranslation('showAllResults')}</a>
+                  </div>`;
+                }
+                return null;
+              },
+              noResults(params) {
+                const { html, state } = params;
+                const listElement = $('.ls-pre-search-no-result-all .content-block .content-block-item').toArray();
+                return html`
+                  <div class="ls-pre-search-no-result">
+                    <div class="ls-pre-search-sorry">
+                      ${ACC.algoliaSearch.getTranslation('preSearchNoResult', [state.query])}
+                    </div>
+                    <div class="ls-pre-search-block-all flexbox">
+                      ${listElement.map(((item, index) => {
+                            const link = $(item).find('.content-image-container a').attr('href');
+                            const target = $(item).find('.content-image-container a').attr('target');
+                            const img = $(item).find('.content-image-container img').attr('src');
+                            const alt = $(item).find('.content-image-container img').attr('alt');
+                            const title = $(item).find('.content-title a').text();
+                            const linkDescription = $(item).find('.content-link a').text();
+                            return html`<div class="content-block">
+                              <div class="content-block-item">
+                                <div class="content-image-container">
+                                  <a href="${link}" target="${target}">
+                                    <img src="${img}" loading="lazy" alt="${alt}"/>
+                                  </a>
+                                </div>
+                                <div class="content-title">
+                                  <a href="${link}" target="${target}">${title}</a>
+                                </div>
+                                <div class="content-link">
+                                  <a href="${link}" target="${target}">${linkDescription}</a>
+                                </div>
+                              </div>
+                            </div>`;
+                          })
+                      )}
+                    </div>
+                  </div>
+                `;
+              }
+            }
+          }
+        ]);
+      }
+    });
+    if (!ACC.algoliaSearch.isCategoryPage) {
+      window.addEventListener('popstate', () => {
+        skipInstantSearchUiStateUpdate = true;
+        setQuery(alSearch.helper?.state.query || '');
+      });
+    }
+    $('#js-site-search-input').remove();
+    $('#js-search-icon').remove();
+    $('#autocomplete-container').removeClass('hidden');
+    ACC.algoliaSearch.restoreUIState();
+  },
+  createLocalStorageRecentlyViewedItems: function (params) {
+    const { createLocalStorageRecentSearchesPlugin, search, SearchParams } = window['@algolia/autocomplete-plugin-recent-searches'];
+    const { onReset, onSelect, onSubmit, subscribe, ...plugin } = createLocalStorageRecentSearchesPlugin({
+      ...params,
+      search(params) {
+        if (params.query && params.query?.length >= ACC.algoliaSearch.minQueryChar) {
+          return [];
+        }
+        return search({...params, query: ''});
+      },
+      transformSource({ source, onRemove, state }) {
+        const transformedSource = params.transformSource
+          ? params.transformSource({ source, onRemove, state })
+          : source;
+        const storageItem = JSON.parse(localStorage.getItem(`${ACC.algoliaSearch.recentSearchesPrefix}:${ACC.algoliaSearch.recentViewedKey}`));
+        if (params.limit && storageItem.length > params.limit) {
+          const newItems = storageItem.slice() || [];
+          // This make sure recently view only track maximum of "Limit" item. -> Reduce local storage memory
+          localStorage.setItem(`${ACC.algoliaSearch.recentSearchesPrefix}:${ACC.algoliaSearch.recentViewedKey}`, JSON.stringify(newItems.splice(0, params.limit)));
+        }
+        return {
+          ...transformedSource,
+          sourceId: 'recentlyViewedItemsPlugin',
+          getItemUrl({ item }) {
+            return item.url;
+          },
+          onSelect({ setIsOpen, setQuery, event, item }) {
+            if (!$(event.target).closest('a').length > 0) {
+              setIsOpen(true);
+            }
+          },
+          templates: {
+            ...transformedSource.templates,
+            header(params) {
+              const { html } = params
+              return html`<div class="ls-al-recently-view-header">
+                ${ACC.algoliaSearch.getTranslation('recentlyView')}
+              </div>`;
+            },
+            item({ item, html}) {
+              window.clearTimeout(window.stateCheck);
+              window.stateCheck = setTimeout(() => {
+                ACC.algoliaSearch.updateLicenseByState();
+              }, ACC.algoliaSearch.algoliaDebounceTime);
+              const addToCart = ACC.algoliaSearch.renderPreSearchAddToCart(item, html);
+              const image = ACC.algoliaSearch.renderPreSearchImage(item, html);
+              return html`<section class="ls-al-search-item ls-recently-view">
+                <div class="product-component ls-al-product flexbox" data-state-check="${item.addToCartDisabled}" data-product-code="${item.objectID}">
+                  ${ACC.algoliaSearch.renderPreSearchPromotion(item, html)}
+                  ${ACC.algoliaSearch.renderPreSearchGoRewards(item, html)}
+                  ${image}
+                  <div class="product-info-container">
+                    <div class="product-name-container">
+                      <div class="product-display-name">
+                        <div class="product-pdp-name item-name text-left text-line3">
+                          <a href="${item.url}" target="_self">
+                            ${item.label || item.identifier}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="product-info-content-container flexbox">
+                      <div class="product-info-content flexbox flex-col ls-product-show-info flex-1">
+                        <div class="product-info-text-container">
+                          <div class="product-information-content flexbox flex-col">
+                            <div class="product-information-code flexbox">
+                                <span class="product-code-label">
+                                  ${ACC.algoliaSearch.getTranslation('productCode', [item.displayCode || item.yCArticleNo || item.objectID])}
+                                </span>
+                            </div>
+                            <div class="product-information-desc">${item.summary}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    ${ACC.algoliaSearch.renderPreSearchProductNotes(item, html)}
+                  </div>
+                  <div class="product-actions recently-view">
+                    <div class="ls-al-delete">
+                      <button class="recently-view-delete" onClick="${(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onRemove(item.id);
+                      }}">
+                        <div class="recently-view-delete-icon">
+                          <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 5H17M7 9V15M11 9V15M2 5L3 17C3 17.5304 3.21071 18.0391 3.58579 18.4142C3.96086 18.7893 4.46957 19 5 19H13C13.5304 19 14.0391 18.7893 14.4142 18.4142C14.7893 18.0391 15 17.5304 15 17L16 5M6 5V2C6 1.73478 6.10536 1.48043 6.29289 1.29289C6.48043 1.10536 6.73478 1 7 1H11C11.2652 1 11.5196 1.10536 11.7071 1.29289C11.8946 1.48043 12 1.73478 12 2V5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                          </svg>
+                        </div>
+                      </button>
+                    </div>
+                    ${addToCart}
+                  </div>
+                </div>
+              </section>
+              `;
+            }
+          }
+        }
+      }
+    });
+    const { getAlgoliaSearchParams, ...data } = plugin.data;
+
+    return {
+      ...plugin,
+      name: 'aa.localStorageRecentlyViewedItemsPlugin',
+      data,
+    };
+  },
+  registerCartForm: function (event) {
+    const buyFlag = $(event.target).data('allow-to-buy') || $(event.target).closest('.js-add-to-cart').data('allow-to-buy');
+    if (buyFlag) {
+      const form = $(event.target).closest('.add_to_cart_form');
+      const preSearchButton = form.find("button[class='js-add-to-cart pre-search-add-to-cart']");
+      if(preSearchButton && preSearchButton.length > 0) {
+        const productCode =  $(event.target).closest('.product-component').data('product-code') || '';
+        const quantity = $(form).find( "input[name*='qty']").val() || 0;
+        ACC.algoliaSearch.getProductQuantityAndPrice(event, productCode, quantity);
+        ACC.algoliaEvent.sendAlgoliaEvent('addedToCartObjectIDsAfterSearch', [productCode.toString()], ACC.algoliaSearch.defaultCurrency);
+      }
+      form.ajaxForm({
+        beforeSubmit: ACC.product.showRequest,
+        success: ACC.product.displayAddToCartPopup,
+        error: ACC.product.errorCartHandler
+      });
+      form.submit();
+    }
+  },
+  bindProductAddToCart: function () {
+    $(document).on("click", ".ls-al-result-item .js-add-to-cart", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      ACC.algoliaSearch.registerCartForm(e);
+    });
+  },
+  renderHitPerPage: function (renderOptions, isFirstRender) {
+    const { items, canRefine, refine, widgetParams, hasNoResults  } = renderOptions;
+    if (isFirstRender) {
+      const buttonsContainer = document.createElement('section');
+      widgetParams.container.appendChild(buttonsContainer);
+    }
+    const widgetTemplate = widgetParams.container.querySelector('section');
+    widgetTemplate.innerHTML = `
+      <div class="page-size-selection-content flexbox ${hasNoResults ? 'hidden' : ''}">
+        <div class="page-size-label">${ACC.algoliaSearch.getTranslation('pageSize')}</div>
+        <div class="page-size-selection flexbox">
+          ${items.map(item => {
+      return `<button class="selection-number ${item.isRefined ? 'size-selected' : ''}" data-value="${item.value}" ${!canRefine || item.isRefined ? 'disabled' : ''}>${item.label}</button>`;
+    }).join('')}
+        </div>
+      </div>`;
+    widgetTemplate.querySelectorAll('button').forEach(button => {
+      button.addEventListener('click', event => {
+        const value = event.target.dataset.value;
+        refine(value);
+      })
+    });
+  },
+  renderSortBy: function (renderOptions, isFirstRender) {
+    const { options, currentRefinement, refine, widgetParams, hasNoResults  } = renderOptions;
+    if (isFirstRender) {
+      const sortByContainer = document.createElement('section');
+      widgetParams.container.appendChild(sortByContainer);
+    }
+    const widgetTemplate = widgetParams.container.querySelector('section');
+    widgetTemplate.innerHTML = `<div class="category-control category-sort ls-sort-by-control">
+      <span class="category-control-text">${ACC.algoliaSearch.getTranslation('sortBy')}</span>
+      <span class="glyphicon glyphicon-triangle-bottom ls-display-bottom"></span>
+      <span class="glyphicon glyphicon-triangle-top ls-display-top"></span>
+      <div class="sort-list">
+        <div class="sort-entry-container">
+          ${options.map(option => {
+      const selectedRefinement = option.value === currentRefinement ? `<div class="icon-container"><span class="ls-icon-tick"></span></div>` : '';
+      const disabledRefinement = option.value === currentRefinement ? 'sort-entry-disabled' : ''
+      return `<a href="#" class="sort-entry sort-entry-action ${disabledRefinement}" data-replica="${option.value}">
+              ${selectedRefinement}
+              <div class="sort-value">
+                ${option.label}
+              </div>
+            </a>`;
+    }).join('')}
+        </div>
+      </div>
+    </div>`;
+    widgetTemplate.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const replica = event.currentTarget.dataset.replica;
+        refine(replica);
+      })
+    });
+  },
+  renderBreadCrumb: function (renderOptions, isFirstRender) {
+    const {  widgetParams, instantSearchInstance  } = renderOptions;
+    if (isFirstRender) {
+      const linkContainer = document.createElement('section');
+      widgetParams.container.appendChild(linkContainer);
+    }
+    const widgetTemplate = widgetParams.container.querySelector('section');
+    const breadcrumbContent = ACC.algoliaSearch.isCategoryPage ? ACC.algoliaSearch.generateBreadcrumbForCategorypage() : `<li class="active">${instantSearchInstance.helper?.state?.query || ''}</li>`;
+    widgetTemplate.innerHTML = `<div class="breadcrumb-section">
+        <ol class="breadcrumb">
+          <li><span class="glyphicon glyphicon-home"></span><a href="/">Home</a></li>
+          ${breadcrumbContent}
+        </ol>
+      </div>`;
+  },
+  getTranslation: function (translationKey, params = []) {
+    let translationText = ACC.translation[translationKey];
+    params.forEach((param, index) => {
+      translationText = translationText.replaceAll(`{${index}}`, param);
+    });
+    return translationText || translationKey;
+  },
+  getProductQuantityAndPrice: function (event, productCode, quantity) {
+    let divProductCode = document.querySelector('[data-product-code="'+ productCode + '"]');
+    let priceDiv = $(divProductCode).find('.promo-price.ls-display-promo-price');
+    let price;
+    if(priceDiv.length > 0) {
+      price = $(priceDiv)[0].outerText;
+    }
+    ACC.algoliaEvent.objectDatas = [{
+      "price": price ? Number(price.replaceAll("$","").replaceAll(",","")) : 0,
+      "quantity": quantity ? Number(quantity) : 0
+    }];
+  },
+  getPromotionIcons: function (item) {
+    return item.isPromotion ? `<div class="price-tag"><span class="glyphicon glyphicon-tag"></span></div>` : '';
+  },
+  getPromoTag: function () {
+    return `<div class="promotion-banner">${ACC.algoliaSearch.getTranslation('promo')}</div>`;
+  },
+  getGoRewardsTag: function (item) {
+    return `<div class="go-rewards-container" title="${item.goRewards}"><span>${item.goRewards.split(' ').shift()}</span></div>`;
+  },
+  renderFavorites: function (item) {
+    const favoriteButton = ACC.algoliaSearch.isLoggedIn ?
+      `<a data-toggle="modal" data-target="#saveFavoriteModal" class="heart-icon-fav ${item.code || item.objectID} ls-popup-close"><i class="icon-heart"></i></a><div class="favorite-hidden-data"><input type="hidden" name="isObsolete" value="${item.obsolete || item.isObsolete}"/><input type="hidden" name="productCode" value="${item.code || item.objectID}"/><input type="hidden" name="productUom" value="${item.baseUnit?.name}"/><input type="hidden" name="productUnitCode" value="${item.baseUnit?.code}"/><input type="hidden" name="productMinOrderQuan" value="${item.minOrderQuantity || 0}"/></div>` :
+      `<a href="#" data-toggle="modal" data-target="#loginModal" ${item.obsolete || item.isObsolete ? 'disabled' : ''}><i class="icon-heart"></i></a>`;
+    return `<div class="favorites-button-content"><div class="favourite-button">${favoriteButton}</div></div>`;
+  },
+  renderPrice: function (item) {
+    const guestPriceNote = ACC.algoliaSearch.isLoggedIn ? '' : `<div class="non-gst-price flexbox"><span class="price-desc">${ACC.algoliaSearch.getTranslation('priceInclGST')}</span></div>`
+    return `<div class="product-price flexbox flex-col"><div class="promo-price ls-display-promo-price"></div>${guestPriceNote}</div><div class="runout-clearance text-line2">${item.promotion || item.isPromotion ? `<span style="${!item.promotionName ? 'display: none' : ' '}">${item.promotionName || ''}</span><span style="${item.promotionName && item.promotionType?.length > 0 ? ' ' : 'display: none' }">/</span><span>${item.promotionType?.join(', ')}</span>` : ''}</div>`;
+  },
+  renderObsoletePrice: function (item) {
+    const guestPriceNote = ACC.algoliaSearch.isLoggedIn ? '' : `<div class="non-gst-price flexbox"><span class="price-desc">${ACC.algoliaSearch.getTranslation('priceInclGST')}</span></div>`
+    return `<div class="product-price flexbox flex-col"><div class="promo-price ls-display-promo-price"></div>${guestPriceNote}</div>`;
+  },
+  renderObsoleteRunout: function (item) {
+    const priceTag = item.promotionName ? '<div class="price-tag"><span class="glyphicon glyphicon-tag"></span></div>' : '';
+    return`<div class="runout-clearance">
+      <div class="flexbox" style="align-items: center">
+        ${priceTag}
+        <div class="text-line2">
+          ${ACC.algoliaSearch.renderObsoletePromotion(item)}
+        </div>
+      </div>
+    </div>`;
+  },
+  renderObsoletePromotion: function (item) {
+    return `${item.promotion || item.isPromotion ? `<span style="${!item.promotionName ? 'display: none' : ' '}">${item.promotionName || ''}</span>${ACC.algoliaSearch.isLoggedIn ? `<span style="${item.promotionName && item.promotionType?.length > 0 ? ' ' : 'display: none' }">/</span><span>${item.promotionType?.join(', ')}</span>` : ''}` : ''}`
+  },
+  renderImage: function (item) {
+    const thumbnailImage = item.thumbnailMediaUrl || item.thumbnailImage ? `<img src="${item.thumbnailMediaUrl || item.thumbnailImage}" loading="lazy" alt="${item.name || item.identifier}" title="${item.name || item.identifier}" class="img-item product-img"/>` : `<div class="product-details-row"><div class="ls-product-no-image"><div class="no-image-product-icon-container"><p class="icon-f-camera"></p></div><div class="no-image-product-icon-info"><span class="item-title">${ACC.algoliaSearch.getTranslation('productImage')}</span><span class="item-text">${ACC.algoliaSearch.getTranslation('comingSoon')}</span></div></div></div>`;
+    return `<div class="product-item-image">${item.obsolete || item.isObsolete ? `<div class="obsolete-product">${ACC.algoliaSearch.getTranslation('productDiscontinued')}</div>` : ''}<a href="${item.url}" target="_self" onClick="ACC.algoliaSearch.trackRecentlyView(this)">${thumbnailImage}</a></div>`;
+  },
+  renderReplacement: function (item, replacementTarget) {
+    return `<div class="replacement-data">
+      <div class="replacement-info">
+        <div class="replacement-info-container">
+          <div class="replacement-info-content">
+            <div class="${!item.isObsolete && replacementTarget ? 'replacement-info-unavailable replacement-btn replacement-fav-btn' : 'replacement-info-unavailable replacement-btn'}">
+              <span class="icon icon-close replacement-ico"></span>
+               ${item.isObsolete ? ACC.algoliaSearch.getTranslation('productDiscontinued') : ACC.algoliaSearch.getTranslation('productNewRelease')}
+            </div>
+            ${replacementTarget ? `<button type="button" class="replacement-info-btn replacement-btn">
+                <span class="icon-f icon-f-refresh replacement-ico"></span>
+                ${ACC.algoliaSearch.getTranslation('viewReplacement')}
+              </button>` : ''}
+          </div>
+        </div>
+      </div>
+      ${replacementTarget ? `<div style="display: none">${ACC.algoliaSearch.renderReplacementContent(replacementTarget)}</div>` : ''}
+    </div>`;
+  },
+  renderReplacementContent: function (replacementTarget) {
+    return `<div class="product-replacement-container">
+      <div class="product-replacement-content">
+        <div class="product-replacement-icon">
+            <span class="icon-f icon-f-warning"></span>
+        </div>
+        <div class="product-replacement-title">
+          ${ACC.algoliaSearch.getTranslation('viewReplacementDesc')}
+        </div>
+        <div class="product-replacement-content-holder">
+          ${ACC.algoliaSearch.renderLarge1Product(replacementTarget)}
+        </div>
+        <div class="product-replacement-back">
+          <a class="product-replacement-back-btn ls-popup-close">
+            <span class="icon icon-back color-primary"></span>
+            ${ACC.algoliaSearch.getTranslation('viewReplacementBack')}
+          </a>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderLarge1Product: function(item) {
+    const licenseTooltip = ACC.algoliaSearch.renderLicenseTooltip(item);
+    return `<div class="product-display-lg1-container product-component ls-product-show-info"
+      data-unit-code="${item.defaultUnit?.code || item.baseUnit?.code}"
+      data-product-code="${item.code || item.yCArticleNo}"
+      data-live-price-bucket="large1" data-queryid="${item.__queryID || ''}"
+      data-live-price="${!item.obsolete && item.lsproductType !== ACC.algoliaSearch.productType.MTO}">
+      ${item.promotion ? `${ACC.algoliaSearch.getPromoTag()}` : ''}
+      ${item.goRewards ? `${ACC.algoliaSearch.getGoRewardsTag(item)}` : ''}
+      <div class="product-display-lg1-block flexbox">
+        <div class="product-display-lg1-left product-display-image">
+          <div class="product-display-image-container">
+            <div class="favorites-button-container">
+              ${ACC.algoliaSearch.renderFavorites(item)}
+            </div>
+            <div class="product-image-container">
+              ${ACC.algoliaSearch.renderImage(item)}
+            </div>
+          </div>
+          <div class="product-price-information flexbox">
+            ${ACC.algoliaSearch.renderObsoletePrice(item)}
+          </div>
+          <div class="hidden-xs">
+            ${ACC.algoliaSearch.renderQuantitySelector(item)}
+            <div class="product-quantity-helper-content flexbox flex-col">
+              ${ACC.algoliaSearch.renderQuantityHelper(item)}  
+            </div>
+          </div>
+        </div>
+        <div class="product-display-lg1-right">
+          <div class="product-info-content-container">
+            <div class="product-name-container">
+              <div class="product-display-name">
+                <div class="product-pdp-name item-name text-left text-line3">
+                  <a href="${item.url}" target="_self">
+                    ${item.name || item.identifier}
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="product-info-content-container">
+              <div class="product-information-desc hidden-xs" title="${item.summary}">
+                ${item.summary}
+              </div>
+              <div class="product-information-content flexbox flex-col">
+                 <div class="product-information-code flexbox" data-product-display-code="${item.displayCode || item.code}">
+                   <div class="product-code-label">
+                    ${ACC.algoliaSearch.getTranslation('productCode', [item.displayCode || item.code])}
+                   </div>          
+                </div>           
+              </div>
+              <div class="product-information-desc visible-xs" title="${item.summary}">
+                ${item.summary}
+              </div>
+            </div>    
+          </div>
+          <div class="product-price-information flexbox flex-col">
+            ${ACC.algoliaSearch.renderObsoletePrice(item)}
+          </div>
+          ${ACC.algoliaSearch.renderObsoleteRunout(item)}
+        </div>
+      </div>
+      <div class="product-display-lg1-block flexbox">
+        <div class="product-display-lg1-left">
+          <div class="product-suggestion">
+            <div class="visible-xs">
+              ${ACC.algoliaSearch.renderQuantitySelector(item)}
+              <div class="product-quantity-helper-content flexbox flex-col">
+                ${ACC.algoliaSearch.renderQuantityHelper(item)}  
+              </div>
+            </div>
+            ${ACC.algoliaSearch.renderLicenseTooltip(item)}
+            ${ACC.algoliaSearch.renderAddToCart(item)}
+            ${ACC.algoliaSearch.renderProductBundle(item)}
+          </div>
+        </div>
+        <div class="product-display-lg1-right bottom-right"></div>
+      </div>
+    </div>`;
+  },
+  renderMakeToOrder: function (item) {
+    return `<div class="product-mto-buttons flexbox flex-col"><div class="product-mto-info full-width">${ACC.algoliaSearch.getTranslation('priceInApp')}</div><div class="product-mto-button flexbox full-width"><a href="${item.url}" class="ls-primary-button half-width justify-center">${ACC.algoliaSearch.getTranslation('moreInformation')}</a></div></div>`;
+  },
+  renderLicenseTooltip: function (item) {
+    return (!ACC.algoliaSearch.isLicenseUser && item.isLicense) || item.addToCartDisabled ? `<div class="license-tooltip-container"><div class="license-tooltips"><span class="ls-icon-tooltips-dynamic"></span><div class="license-tooltip-text">${ACC.algoliaSearch.getTranslation('cartAddLicense')}</div></div></div>` : '';
+  },
+  renderProductBundle: function (item) {
+    return item.isBundle ? `<div class="product-suggestion"><div class="product-bundle-container"><a href="#" class="product-bundles-content full-width pdp-product-bundle" data-product-code="${item.objectID}">${ACC.algoliaSearch.getTranslation('productBundleNotice')}</a></div></div>` : '';
+  },
+  renderKitNote: function() {
+    return `<div class="kit-component-text">${ACC.algoliaSearch.getTranslation('kitNote')}</div>`;
+  },
+  renderAddToCart: function (item, kit = false) {
+    const addToCartButton = kit === true ? `<button type="submit" data-license="${item.isLicense}"
+        class="ls-secondary-button js-add-to-cart js-enable-btn full-width justify-center order-separator-btn"
+        data-state-check="${item.addToCartDisabled}"
+        data-allow-to-buy="${(!item.isLicense || (item.isLicense && ACC.algoliaSearch.isLicenseUser))}"
+        ${(!item.isLicense || (item.isLicense && ACC.algoliaSearch.isLicenseUser)) && !item.addToCartDisabled ? '' : 'disabled'}>
+        <i class="icon-f icon-f-spinner3 waiting-icon ls-animate-spin hidden"></i>
+        ${ACC.algoliaSearch.getTranslation('orderSeparate')}
+      </button>` :
+      `<button type="button" data-abs-product="false" class="ls-primary-button js-add-to-cart js-enable-btn full-width font-size14"
+          data-state-check="${item.addToCartDisabled}"
+          data-allow-to-buy="${(!item.isLicense || (item.isLicense && ACC.algoliaSearch.isLicenseUser))}"
+          ${(!item.isLicense || (item.isLicense && ACC.algoliaSearch.isLicenseUser)) && !item.addToCartDisabled ? '' : 'disabled'}>
+          <i class="icon-f icon-f-spinner3 waiting-icon ls-animate-spin hidden"></i>
+          <i class="ls-icon-solid-cart cart-icon"></i>
+          ${ACC.algoliaSearch.getTranslation('cartAdd')}
+        </button>`
+    return `<div class="add-to-cart-form-container">
+      <form action="/cart/add" method="post" class="add_to_cart_form">
+        <input type="hidden" size="1" name="qty" class="qty js-qty-selector-input" value="1"/>
+        <input type="hidden" name="productCodePost" value="${item.objectID || item.code}"/>
+        <input type="hidden" name="uomCode" value="${item.defaultUnit?.code || item.baseUnit?.code || ''}"/>
+        <input type="hidden" name="CSRFToken" value="${ACC.config.CSRFToken}"/>
+        <div class="flexbox">
+          ${addToCartButton}
+        </div>
+      </form>
+      </div>`;
+  },
+  renderMinOrderInfo: function (item) {
+    const mtoMinOrder = item.lsproductType !== ACC.algoliaSearch.productType.MTO && item.minOrderQuantity > 0 ? `${ACC.algoliaSearch.getTranslation('minOrderOf')}<span class="min-order">${item.minOrderQuantity || 1}</span>` : `<div class="flexbox align-center ls-al-min-order hidden">${ACC.algoliaSearch.getTranslation('minOrderOf')}<span class="min-order">${item.minOrderQuantity || 1}</span></div>`;
+    const separator = item.minOrderQuantity && (item.roundingProfile?.conversion || item.getRoundingProfile?.conversion) && (item.roundingProfile?.uom || item.getRoundingProfile?.uom) ? '<span>${"-"}</span>' : '';
+    const roundingRule = `<span class="rounding-profile-info">${ACC.algoliaSearch.getTranslation('orderIncrementOfBox', [item.roundingProfile?.ruleConversion || item.getRoundingProfile?.ruleConversion, item.roundingProfile?.uomName || item.getRoundingProfile?.uomName])}</span>`;
+    const conversion = (item.roundingProfile?.conversion || item.getRoundingProfile?.conversion) && (item.roundingProfile?.uom || item.getRoundingProfile?.uom) ? `<span class="rounding-profile-info">${ACC.algoliaSearch.getTranslation('orderIncrement', [item.roundingProfile?.step || item.getRoundingProfile.step, item.roundingProfile?.uom || item.getRoundingProfile.uom])}</span>` : '';
+    const rules = (item.roundingProfile?.rule || item.getRoundingProfile?.rule) ? roundingRule : conversion;
+    return `<div class="product-quantity-helper-text"><div class="min-order-info">${mtoMinOrder}${separator}${rules}</div></div>`;
+  },
+  renderQuantitySelector: function (item) {
+    return `<div class="product-quantity-selector-content">
+      <div class="qty-selector input-group js-qty-selector">
+       <input class="uomStep" type="hidden" data-conversion="${item.roundingProfile?.conversion || item.getRoundingProfile?.conversion ? item.roundingProfile?.conversion || item.getRoundingProfile.conversion : 1.0}"
+          data-roundinguom="${item.roundingProfile?.uom || item.getRoundingProfile?.uom ? item.roundingProfile?.uom || item.getRoundingProfile.uom : 'none'}"
+          data-roundingrule="${item.roundingProfile?.rule || item.getRoundingProfile?.rule ? item.roundingProfile?.rule || item.getRoundingProfile.rule : 'none'}"
+          data-roundingconversion="${item.roundingProfile?.ruleConversion || item.getRoundingProfile?.ruleConversion ? item.roundingProfile?.ruleConversion || item.getRoundingProfile.ruleConversion : 1.0}"
+          data-defaultconversion="${item.defaultUnit?.conversion ? item.defaultUnit.conversion : 1.0}"
+          data-baseconversion="${item.baseUnit?.conversion ? item.baseUnit.conversion : 1.0}"
+          data-hasdefaultconversion="${item.defaultUnit?.conversion ? 'true' : 'false'}"
+          data-step="${item.roundingProfile?.step || item.getRoundingProfile?.step ? item.roundingProfile?.step || item.getRoundingProfile.step : 1}"
+          value="1"/>
+        <div class="input-group-btn">
+          <button class="quantity-selector ls-qty-selector js-qty-selector-minus pdp-btn-minus" type="button">
+            <span class="icon-minus" aria-hidden="true"></span>
+          </button>
+        </div>
+        <input type="text" maxlength="7" class="form-control js-qty-selector-input pdp-quantity-input mini-cart-qty-input" size="1" value="${item.minOrderQuantity ? item.minOrderQuantity : 1}" name="pdpAddtoCartInput" autocomplete="off"
+          data-level="${item.stock?.stockLevel || 0}" data-max="${item.stock?.stockLevelStatus?.code === ACC.algoliaSearch.stock.inStock && !item.stock?.stockLevel ? ACC.algoliaSearch.stock.FORCE_IN_STOCK : item.stock?.stockLevel || ''}" data-min="${item.minOrderQuantity ? item.minOrderQuantity : 1}">
+        <div class="input-group-btn">
+          <button class="quantity-selector ls-qty-selector js-qty-selector-plus pdp-btn-plus" type="button">
+            <span class="icon-plus" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderQuantityHelper: function (item) {
+    const unitName = item.defaultUnit?.name ? item.defaultUnit.name : item.baseUnit?.name || '';
+    const baseUnitLabel = item.baseUnit?.conversionLabel ? item.baseUnit.conversionLabel : ACC.algoliaSearch.getTranslation('uomConversionLabel', [item.baseUnit?.name || '', '1'])
+    const baseUnit = `<p class="${item.defaultUnit?.name ? 'hide' : ''} unit-price-toggle unit-${item.baseUnit?.code || ''}">${ACC.algoliaSearch.getTranslation('uom')} ${baseUnitLabel}</p>`
+    const defaultUnitLabel = item.defaultUnit?.conversionLabel ? item.defaultUnit.conversionLabel : ACC.algoliaSearch.getTranslation('uomConversionLabel', [item.defaultUnit?.name || '', '1']);
+    const defaultUnit = `<p class="${item.defaultUnit?.name ? '' : 'hide'} unit-price-toggle unit-${item.defaultUnit?.code || ''}">${ACC.algoliaSearch.getTranslation('uom')} ${defaultUnitLabel}</p>`
+    const uomCodes = item.uoms?.map(uom => {
+      const uomLabel = uom.conversionLabel ? uom.conversionLabel : ACC.algoliaSearch.getTranslation('uomConversionLabel', [uom?.name || '', '1']);
+      return uom.defaultUnit?.code && uom.code !== item.defaultUnit?.code ? `<p class="hide unit-price-toggle unit-${uom.code}">${ACC.algoliaSearch.getTranslation('uom')} ${uomLabel}</p>` : '';
+    }).join('');
+    return `<div class="product-quantity-helper-text" data-unit-name="${unitName}">${baseUnit} ${defaultUnit} ${uomCodes}</div>`;
+  },
+  renderProductComponent: function (item, html) {
+    const name = item.identifier;
+    const replacementProduct = item.productReferences?.find(ref => ref.referenceType === ACC.algoliaSearch.referenceType.replacement);
+    const replacementTarget = replacementProduct?.target || undefined;
+    return `<div class="product-result-item product-item ls-al-result-item">
+      <div class="product-display-lg2-container flexbox flex-col product-component" data-state-check="${item.addToCartDisabled}" data-product-code="${item.objectID}" data-live-price-bucket="large2" data-license="${item.isLicense}"
+        data-live-price="${!item.isObsolete && item.lsproductType !== ACC.algoliaSearch.productType.MTO}" data-unit-code="${item.defaultUnit?.code || item.baseUnit?.code}" data-brand-name="${item.brandName || ''}" data-category-name="${item.categories[0] || ''}">
+        ${item.isPromotion ? html`${ACC.algoliaSearch.getPromoTag()}` : ''}
+        ${item.goRewards ? html`${ACC.algoliaSearch.getGoRewardsTag(item)}` : ''}
+        <div class="favorites-button-container">
+          ${ACC.algoliaSearch.renderFavorites(item)}
+        </div>
+        <div class="product-image-container">
+          ${ACC.algoliaSearch.renderImage(item)}
+        </div>
+        <div class="product-info-content-container ls-product-show-info">
+          <div class="product-name-container">
+            <div class="product-display-name">
+              <div class="product-pdp-name item-name text-left text-line3">
+                <a href="${item.url}" target="_self" onclick="ACC.algoliaSearch.trackRecentlyView(this)">
+                  ${name}
+                </a>
+              </div>
+            </div>
+          </div>
+          <div class="product-info-content-container">
+            <div class="product-information-content flexbox flex-col">
+              <div class="product-information-code flexbox">
+                <div class="product-code-label">
+                  ${ACC.algoliaSearch.getTranslation('productCode', [item.displayCode || item.yCArticleNo || item.objectID])}
+                </div>
+              </div>
+              <div class="product-information-desc">
+                  ${item.summary}
+              </div>
+            </div>
+            <div class="product-info-button-container">
+              <div class="product-information-buttons flexbox flex-col" data-obsolete="${item.isObsolete}"
+                data-replacements="${replacementTarget}">
+                ${item.isObsolete || replacementTarget ? ACC.algoliaSearch.renderReplacement(item, replacementTarget) :
+      item.lsproductType === ACC.algoliaSearch.productType.MTO ? ACC.algoliaSearch.renderMakeToOrder(item) :
+        `<div class="product-price-information flexbox">
+                  ${ACC.algoliaSearch.getPromotionIcons(item)}
+                  ${ACC.algoliaSearch.renderPrice(item)}
+                </div>
+                <div class="product-button-container flexbox">
+                  <div class="product-quantity-container">
+                    ${ACC.algoliaSearch.renderQuantitySelector(item)}
+                    <div class="product-quantity-helper-content flexbox flex-col">
+                      ${ACC.algoliaSearch.renderQuantityHelper(item)}
+                      <div class="product-helper-text">
+                        ${ACC.algoliaSearch.renderMinOrderInfo(item)}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="product-button-content-container flex-1">
+                    ${ACC.algoliaSearch.renderAddToCart(item)}
+                    ${ACC.algoliaSearch.renderLicenseTooltip(item)}
+                    ${ACC.algoliaSearch.renderProductBundle(item)}
+                  </div>
+                </div>`}
+                <div id="priceTracking" class="display-none"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  },
+  renderPreSearchAddToCart: function (item, html) {
+    const replacementProduct = item.productReferences?.find(ref => ref.referenceType === ACC.algoliaSearch.referenceType.replacement);
+    const replacementTarget = replacementProduct?.target || undefined;
+    const stateCheckFlag = item.addToCartDisabled ? 'hidden' : '';
+    return item.isObsolete || replacementTarget || (item.isLicense && !ACC.algoliaSearch.isLicenseUser) || item.lsproductType === ACC.algoliaSearch.productType.MTO ? '' :
+      html`<div class="ls-al-cart ${stateCheckFlag}">
+        <form class="add_to_cart_form" action="/cart/add" method="post">
+          <input type="hidden" size="1" name="qty" class="qty js-qty-selector-input" value="1"/>
+          <input type="hidden" name="productCodePost" value="${item.objectID}"/>
+          <input type="hidden" name="uomCode" value="${item.defaultUnit?.code || item.baseUnit?.code || ''}"/>
+          <input type="hidden" name="CSRFToken" value="${ACC.config.CSRFToken}"/>
+          <button class="js-add-to-cart pre-search-add-to-cart" ${(!item.isLicense || (item.isLicense && ACC.algoliaSearch.isLicenseUser)) ? '' : 'disabled'} type="button" data-state-check="${item.addToCartDisabled}" data-allow-to-buy="${(!item.isLicense || (item.isLicense && ACC.algoliaSearch.isLicenseUser))}" onClick="${(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            ACC.algoliaSearch.registerCartForm(event);
+          }}">
+            <div class="cart-icon-container">
+              <i class="icon-f icon-f-spinner3 waiting-icon ls-animate-spin hidden"></i>
+              <span class="ls-icon-solid-cart cart-icon"></span>
+              <spam class="icon icon-plus"></spam>
+            </div>
+          </button>
+        </form>
+      </div>`;
+  },
+  renderPreSearchImage: function (item, html) {
+    return html`<div class="product-image-container">
+      <div class="product-item-image">
+        ${item.isObsolete ? html`<div class="obsolete-product">${ACC.algoliaSearch.getTranslation('productDiscontinued')}</div>` : ''}
+        <a href="${item.url}" target="_self">
+          ${item.thumbnailImage ? html`<div class="product-image-details"><img src="${item.thumbnailImage}" alt="${item.identifier}" title="${item.identifier}" class="img-item product-img"/></div>` :
+              html`<div class="ls-product-no-image">
+                <div class="no-image-product-icon-container">
+                  <p class="icon-f-camera"></p>
+                </div>
+                <div class="no-image-product-icon-info">
+              <span class="item-title">
+                ${ACC.algoliaSearch.getTranslation('productImage')}
+              </span>
+                  <span class="item-text">
+                ${ACC.algoliaSearch.getTranslation('comingSoon')}
+              </span>
+                </div>
+              </div>`}
+        </a>
+      </div>
+    </div>`;
+  },
+  renderProductSummaryHTML: function(item, html) {
+    return html`
+      <div class="product-information-desc-summary-html" 
+           ref=${(el) => {
+             if (!el) return;
+             while (el.firstChild) {
+               el.removeChild(el.firstChild);
+             }
+             const temp = document.createElement('div');
+             temp.innerHTML = item.summary || '';
+             el.replaceChildren(...temp.childNodes);
+          }}>
+      </div>`;
+  },
+  renderPreSearchPromotion: function(item, html) {
+    return item.isPromotion ? html`<div class="promotion-banner">${ACC.algoliaSearch.getTranslation('promo')}</div>` : '';
+  },
+  renderPreSearchGoRewards: function (item, html) {
+    return item.goRewards ? html`<div class="go-rewards-container" title="${item.goRewards}"><span>${item.goRewards.split(' ').shift()}</span></div>` : '';
+  },
+  renderPreSearchProductNotes: function (item, html) {
+    const promotions = item.isPromotion ? html`<div class="price-tag"><span class="glyphicon glyphicon-tag"></span></div><div class="runout-clearance"><span style="${!item.promotionName ? 'display: none' : ' '}">${item.promotionName || ''}</span></div>` : '';
+    const runoutClearance = html`<div class="product-price-information flexbox">${promotions}</div>`;
+    const productB2B = item.lsproductType === ACC.algoliaSearch.productType.B2B ? html`<div class="product-b2b-text"><p>${ACC.algoliaSearch.getTranslation('licenseNotice')}</p></div>` : ''
+    const productBundle = item.isBundle ? html`<div class="product-suggestion"><div class="product-bundle-container"><a href="#" class="product-bundles-content full-width pdp-product-bundle" data-product-code="${item.objectID}">${ACC.algoliaSearch.getTranslation('productBundleNotice')}</a></div></div>`: '';
+    return html`${runoutClearance}${productB2B}${productBundle}`;
+  },
+  renderObsoleteToggleRefinementLabel: function (params) {
+    const { name, isRefined } = params;
+    return `<div class='flexbox aligin-center toggle-refinement-item'><span class="toggle-label">${ACC.algoliaSearch.getTranslation(`${name}.${name}`)}</span><span class="toggle-value">${ACC.algoliaSearch.getTranslation(`${name}.${!isRefined}`)}</span></div>`;
+  },
+  renderToggleRefinementLabel: function (params) {
+    const { name, isRefined } = params;
+    return `<div class='flexbox aligin-center toggle-refinement-item'><span class="toggle-label">${ACC.algoliaSearch.getTranslation(`${name}`)}</span><span class="toggle-value">${ACC.algoliaSearch.getTranslation(`${name}.${isRefined}`)}</span></div>`
+  },
+  trackRecentlyView: function (event) {
+    const productCode = $(event).closest('.product-component')?.data('product-code') || $(event.target).closest('.product-component')?.data('product-code');
+    const productItem = this.itemList?.find(item => item.objectID === productCode.toString());
+    const storageItem = JSON.parse(localStorage.getItem(`${ACC.algoliaSearch.recentSearchesPrefix}:${ACC.algoliaSearch.recentViewedKey}`));
+    const replaceIndex = storageItem?.findIndex(item => item.objectID === productItem.objectID);
+    let newItems = storageItem?.slice() || [];
+    if (replaceIndex >= 0) {
+      newItems.splice(replaceIndex, 1);
+    }
+    newItems.unshift({
+      ...productItem,
+      id: productItem.objectID
+    });
+    localStorage.setItem(`${ACC.algoliaSearch.recentSearchesPrefix}:${ACC.algoliaSearch.recentViewedKey}`, JSON.stringify(newItems));
+  },
+  updateMinOrder: function () {
+    $('.js-qty-selector').each(function () {
+      const selectorInput = $(this).find('.js-qty-selector-input');
+      const input = $(this).find('.uomStep');
+      const hasDefaultUoM = input.data('hasdefaultconversion');
+      //If there's no default conversion -> use base conversion
+      if (hasDefaultUoM === 'false') {
+        const baseUoM = input.data('baseconversion');
+        input.data('defaultconversion', baseUoM);
+      }
+      if (input.length !== 0 && selectorInput.length !== 0) {
+        ACC.productDetail.checkQtySelector($(this), 'init');
+        const minOrderValue = selectorInput.val();
+        $(this).find('.min-order-info .min-order').first().html(minOrderValue);
+        if (parseInt(minOrderValue) > 1) {
+          $(this).closest('.product-component').find('.min-order-info .ls-al-min-order').first().removeClass('hidden');
+        }
+      }
+    });
+  },
+  setShareSearchData: function (url) {
+    const shareBtn = $('.ls-share-search .ls-btn-share');
+    if (shareBtn.length > 0) {
+      const shareUrl = `${window.location.origin}${url}`;
+      const emailLink = ACC.algoliaSearch.getTranslation('share', [shareUrl])
+      shareBtn.attr('href', encodeURI(emailLink));
+    }
+  },
+  bindFilterItem: function () {
+    $(document).on('click', '.ais-Panel .ais-Panel-header', function () {
+      $(this).closest('.ais-Panel').toggleClass('panel-toggled');
+    });
+    $(document).on('click', '.filter-header .close-filter', function () {
+      $('body').removeClass('filter-toggled');
+      $('.ais-Panel').removeClass('panel-toggled');
+    });
+    $(document).on('click', '.filter-header .close-filter', function () {
+      $('body').removeClass('filter-toggled');
+      $('.ais-Panel').removeClass('panel-toggled');
+    });
+    $(document).on('click', '.filter-buttons-container .show-results', function () {
+      $('body').removeClass('filter-toggled');
+      $('.ais-Panel').removeClass('panel-toggled');
+    });
+    $(document).on('click', '.filter-buttons-container .clear-all-btn', function () {
+      $('.ais-ClearRefinements-button').click();
+    });
+    $(document).on('click', '.header-right-container .filter-header-container', function () {
+      $('body').addClass('filter-toggled');
+    });
+  },
+  updateFilter: function () {
+    const allPanel = $('.ais-Panel');
+    allPanel?.toArray().forEach((panel) => {
+      const isRefinement = $(panel).find('.ais-RefinementList').length > 0;
+      let count = 0;
+      if (isRefinement) {
+        count = $(panel).find('.ais-RefinementList-checkbox:checked').length;
+      }
+      const isHierarchicalMenu = $(panel).find('.ais-HierarchicalMenu').length > 0;
+      if (isHierarchicalMenu) {
+        count = $(panel).find('.ais-HierarchicalMenu-item--selected').length > 0 ? 1 : 0;
+      }
+      if (count > 0) {
+        $(panel).addClass('hasFacets');
+        const counterEle = $(panel).find('.facet-count');
+        counterEle.text(ACC.algoliaSearch.getTranslation('counter', [count]));
+        counterEle.data('count', count)
+      } else {
+        $(panel).removeClass('hasFacets');
+        const counterEle = $(panel).find('.facet-count');
+        counterEle.text('');
+        counterEle.data('count', count)
+      }
+    });
+    ACC.algoliaSearch.updateTotalCount();
+  },
+  updateTotalCount: function () {
+    const facetCount = $('.facet-count');
+    const total = facetCount?.toArray().reduce((a, b) => a + parseInt($(b).data('count') || 0), 0);
+    $('.total-filter-count').text(total || '');
+    if (total > 0) {
+      $('.header-right-filter .filter-header-container').addClass('hasFacets');
+    } else {
+      $('.header-right-filter .filter-header-container').removeClass('hasFacets');
+    }
+  },
+  updateLicenseByState: function () {
+    if (!ACC.algoliaSearch.isLoggedIn) {
+      return;
+    }
+    const stateCheckList = $('.product-component[data-state-check=true]');
+    if (!stateCheckList || stateCheckList.length === 0) {
+      return;
+    }
+    const productCodeList = stateCheckList.toArray().map(component => $(component).data('product-code')).join(',');
+    return ACC.algoliaSearch.invokeStateCheck(productCodeList);
+  },
+  invokeStateCheck: function (productCodes) {
+    if (productCodes) {
+      const url = `${ACC.algoliaSearch.stateCheckUrl}/${productCodes}`;
+      $.ajax({
+        url: url,
+        cache: false,
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+          const responseList = Array.isArray(response) ? response : [response];
+          ACC.algoliaSearch.updateAddToCartState(responseList);
+        }
+      });
+    }
+  },
+  updateAddToCartState: function (response) {
+    response?.forEach(product => {
+      if (product?.productCode && product?.isAvailable) {
+        const productComponent = $(".product-component[data-product-code=" + product.productCode + "]");
+        productComponent.data('state-check', false);
+        productComponent.find('.license-tooltip-container').remove();
+        productComponent.find('.ls-al-cart').removeClass('hidden');
+        productComponent.find('.js-add-to-cart').data('state-check', false);
+        productComponent.find('.js-add-to-cart').prop("disabled", false);
+      }
+    });
+  },
+  getCategorySystem: function () {
+    let level3Category = ACC.algoliaSearch.categorySystem?.split(';lv3:');
+    const categoryData = [];
+    if (level3Category?.length === 2) {
+      const lvl3Data = level3Category.pop();
+      categoryData.unshift(lvl3Data);
+    }
+    const level2Category = level3Category?.join('').split(';lv2:');
+    if (level2Category?.length === 2) {
+      const lvl2Data = level2Category.pop();
+      categoryData.unshift(lvl2Data);
+    }
+    const level1Category = level2Category?.join('').split('lv1:');
+    if (level1Category?.length === 2) {
+      const lvl1Data = level1Category.pop();
+      categoryData.unshift(lvl1Data);
+    }
+    return categoryData;
+  },
+  generateBreadcrumbForCategorypage() {
+    const categoryData = ACC.algoliaSearch.getCategorySystem();
+    const categoryType = $('.ls-al-product-category-page').data('category-type');
+    let breadcrumb = categoryType !== ACC.algoliaSearch.categoryType.ALL_CATEGORY ? `<li><a href="/c/LSG_TYPE">${ACC.algoliaSearch.getTranslation('categories')}</a></li>` : '';
+    categoryData.map(category => {
+      breadcrumb +=`<li><a href="/c/${category.split('$')[0]}">${category.split('$')?.pop()}</a></li>`;
+    });
+    return breadcrumb;
+  },
+  setPreSelectRefinement: function (categoryData, categoryType, search, currentState) {
+    const stateRefinement = Object.keys(currentState)?.filter(param => !ACC.algoliaSearch.byPassRefinement.includes(param));
+    if (stateRefinement.length === 0) {
+      const facetFilter = categoryData?.shift();
+      const facetName = facetFilter?.split('$')?.pop();
+      const facetKey = ACC.algoliaSearch.facetKey[categoryType];
+      const state = {
+        [ACC.algoliaSearch.refinementListKey]: {
+          [facetKey]: facetName ? [facetName] : []
+        }
+      };
+      search.setUiState(uiState => ({
+        ...uiState,
+        [ACC.config.algoliaIndex]: {
+          ...uiState[ACC.config.algoliaIndex],
+          // We reset the page when the search state changes.
+          page: 1,
+          ...state,
+        }
+      }));
+    }
+  },
+  restoreUIState: function () {
+    if (ACC.algoliaSearch.isCategoryPage || $('.ls-al-product-search-page').length > 0) {
+      setTimeout(() => {
+        $('.recently-view-products').removeClass('hidden');
+        $('.al-search-content-block').removeClass('hidden');
+        $('.al-search-latest-release').removeClass('hidden');
+      }, 1500);
+    }
+  },
+  buildRouteFromState: function (uiState) {
+    const indexUiState = uiState[ACC.config.algoliaIndex];
+    const refinementList = indexUiState?.[ACC.algoliaSearch.refinementListKey] || {};
+    const toggle = indexUiState.toggle || {};
+    const hierarchicalMenu = indexUiState?.hierarchicalMenu || {};
+    let refinement = {};
+    Object.keys(refinementList).forEach(refine => {
+      const refinementKey = ACC.algoliaSearch.refinementMapping[refine] || refine;
+      refinement[refinementKey] = refinementList[refine].map(item => ACC.algoliaSearch.getRouteToStateValue(item)).join(ACC.algoliaSearch.valueSeparator);
+    });
+    const categoryType = $('.ls-al-product-category-page').data('category-type');
+    const categoryData = ACC.algoliaSearch.getCategorySystem();
+    const facetFilter = categoryData.map(category => {
+      return category.split('$')?.pop();
+    });
+    if (ACC.algoliaSearch.isCategoryPage && categoryType === ACC.algoliaSearch.categoryType.BRAND) {
+      let mappedBrands = [];
+      if (refinementList?.brands?.length > 0 && facetFilter.length > 0 && refinementList?.brands?.includes(facetFilter[0])) {
+        mappedBrands = refinementList?.brands.filter(item => item !== facetFilter[0])
+      }
+      refinement = {
+        ...refinement,
+        brand: mappedBrands.length > 0 ? mappedBrands.map(item => ACC.algoliaSearch.getRouteToStateValue(item)).join(ACC.algoliaSearch.valueSeparator) : undefined
+      }
+    }
+    if (ACC.algoliaSearch.isCategoryPage && categoryType === ACC.algoliaSearch.categoryType.PROMOTION) {
+      let mappedPromotions = [];
+      if (refinementList?.promotions?.length > 0 && facetFilter.length > 0 && refinementList?.promotions?.includes(facetFilter[0])) {
+        mappedPromotions = refinementList?.promotions?.filter(item => item !== facetFilter[0])
+      }
+      refinement = {
+        ...refinement,
+        promotion: mappedPromotions.length > 0 ? mappedPromotions.map(item => ACC.algoliaSearch.getRouteToStateValue(item)).join(ACC.algoliaSearch.valueSeparator) : undefined
+      }
+    }
+    const state = {
+      "q": indexUiState.query,
+      "suggested-category": indexUiState.menu?.categories || undefined,
+      "obsolete": toggle?.isObsolete,
+      "kit": toggle?.productKit,
+      "page": indexUiState?.page,
+      "sortBy": indexUiState?.sortBy,
+      "hitsPerPage": indexUiState?.hitsPerPage,
+      ...refinement
+    };
+    if (!ACC.algoliaSearch.isCategoryPage || (ACC.algoliaSearch.isCategoryPage && JSON.stringify(hierarchicalMenu?.[ACC.algoliaSearch.hierarchicalMenuKey]) !== JSON.stringify(ACC.algoliaSearch.hierarchicalMenuDefaultState))) {
+      return {
+        ...state,
+        "category": hierarchicalMenu?.[ACC.algoliaSearch.hierarchicalMenuKey]?.map(item => ACC.algoliaSearch.getRouteToStateValue(item))?.join(ACC.algoliaSearch.valueSeparator) || undefined,
+      };
+    }
+    return state;
+  },
+  transformStateFromRoute: function (routeState) {
+    const convertedState = {
+      [ACC.config.algoliaIndex]: {
+        query: routeState?.q,
+        page: routeState?.page,
+        hierarchicalMenu: {
+          [ACC.algoliaSearch.hierarchicalMenuKey]: routeState?.category?.split(ACC.algoliaSearch.valueSeparator)?.map(item => ACC.algoliaSearch.getStateToRouteValue(item))
+        },
+        sortBy: routeState?.sortBy,
+        hitsPerPage: routeState?.hitsPerPage
+      }
+    };
+    const categoryType = $('.ls-al-product-category-page').data('category-type');
+    if (ACC.algoliaSearch.isCategoryPage && (categoryType === ACC.algoliaSearch.categoryType.CATEGORY || categoryType === ACC.algoliaSearch.categoryType.TYPE || categoryType === ACC.algoliaSearch.categoryType.GROUP)) {
+      const categoryData = ACC.algoliaSearch.getCategorySystem();
+      const facetFilter = categoryData.map(category => {
+        return category.split('$')?.pop();
+      });
+      convertedState[ACC.config.algoliaIndex].hierarchicalMenu = {
+        [ACC.algoliaSearch.hierarchicalMenuKey]: facetFilter
+      };
+      ACC.algoliaSearch.hierarchicalMenuDefaultState = facetFilter;
+    }
+    if (routeState['suggested-category']) {
+      convertedState[ACC.config.algoliaIndex].menu = {
+        categories: routeState['suggested-category']
+      };
+    }
+    if (routeState?.obsolete || routeState?.kit) {
+      convertedState[ACC.config.algoliaIndex].toggle = {};
+      if (routeState?.obsolete) {
+        convertedState[ACC.config.algoliaIndex].toggle.isObsolete = true;
+      }
+      if (routeState?.kit) {
+        convertedState[ACC.config.algoliaIndex].toggle.productKit = true;
+      }
+    }
+    if (routeState?.category) {
+      convertedState[ACC.config.algoliaIndex].hierarchicalMenu = {
+        [ACC.algoliaSearch.hierarchicalMenuKey]: routeState?.category?.split(ACC.algoliaSearch.valueSeparator)?.map(item => ACC.algoliaSearch.getStateToRouteValue(item))
+      };
+    }
+    var brand = [];
+    if(categoryType === ACC.algoliaSearch.categoryType.BRAND) {
+      const categoryData = ACC.algoliaSearch.getCategorySystem();
+      const pageBrand = categoryData.map(category => {
+        return category.split('$').pop();
+      });
+      if (pageBrand && pageBrand.length > 0) {
+        brand.push(pageBrand[0]);
+      }
+    }
+    if (routeState?.brand) {
+      const routerBrands = routeState?.brand.split(ACC.algoliaSearch.valueSeparator)?.map(item => ACC.algoliaSearch.getStateToRouteValue(item));
+      brand = [...brand, ...routerBrands];
+    }
+    let promotion = [];
+    if(categoryType === ACC.algoliaSearch.categoryType.PROMOTION) {
+      const categoryData = ACC.algoliaSearch.getCategorySystem();
+      const pagePromotion = categoryData.map(category => {
+        return category.split('$').pop();
+      });
+      if (pagePromotion && pagePromotion.length > 0) {
+        promotion.push(pagePromotion[0]);
+      }
+    }
+    if (routeState?.promotion) {
+      const routePromo = routeState?.promotion.split(ACC.algoliaSearch.valueSeparator)?.map(item => ACC.algoliaSearch.getStateToRouteValue(item));
+      promotion = [...promotion, ...routePromo];
+    }
+    const refinementList = ACC.algoliaSearch.getRefinementListFromState(routeState);
+    if (refinementList) {
+      convertedState[ACC.config.algoliaIndex][ACC.algoliaSearch.refinementListKey] = {
+        ...refinementList,
+        brands: brand,
+        promotions: promotion
+      };
+    }
+    return convertedState;
+  },
+  getRouteToStateValue: function (name) {
+    return name?.split(ACC.algoliaSearch.routeStateSeparator).join(ACC.algoliaSearch.routeStateReplacer).split(ACC.algoliaSearch.routeStateSpacer).join(ACC.algoliaSearch.routeStateSeparator);
+  },
+  getStateToRouteValue: function (val) {
+    return val?.split(ACC.algoliaSearch.routeStateSeparator).join(ACC.algoliaSearch.routeStateSpacer).split(ACC.algoliaSearch.routeStateReplacer).join(ACC.algoliaSearch.routeStateSeparator);
+  },
+  getRefinementListFromState: function (routerState) {
+    const revertedMapping = {}
+    Object.keys(ACC.algoliaSearch.refinementMapping).forEach(item => {
+      revertedMapping[ACC.algoliaSearch.refinementMapping[item]] = item;
+    });
+    const filteredList = Object.keys(routerState).filter(param => !ACC.algoliaSearch.byPassRefinement.includes(param));
+    if (filteredList.length > 0) {
+      const refinementList = {}
+      filteredList.forEach(facet => {
+        let facetKey = revertedMapping[facet] || facet;
+        refinementList[facetKey] = routerState[facet].split(ACC.algoliaSearch.valueSeparator).map(val => ACC.algoliaSearch.getStateToRouteValue(val));
+      });
+      return refinementList;
+    }
+    return undefined;
+  },
+  initAlgoliaFrequentlyBoughtTogether: function (response) {
+    const recommendationObjectId = $('.product-component.product-size-xl-container').data('product-code').toString();
+    if (!recommendationObjectId) return;
+    const frequentlyBoughtTogether = instantsearch.widgets.frequentlyBoughtTogether;
+    if (!window.recommendation) {
+      const searchClient = window.algoliasearch(ACC.config.algoliaApplicationId, ACC.config.algoliaSearchKey, {
+        responsesCache: ACC.algoliaSearch.createBrowserLocalStorageCache({ key: 'caching-response', timeToLive: ACC.algoliaSearch.cachingTTL}),
+        requestsCache: ACC.algoliaSearch.createBrowserLocalStorageCache({ key: 'caching-request', timeToLive: ACC.algoliaSearch.cachingTTL}),
+      });
+      window.recommendation = window.instantsearch({
+        searchClient,
+        indexName: ACC.config.algoliaIndex,
+        insights: {
+          insightsClient: window.aa,
+          insightsInitParams: {
+            useCookie: true
+          }
+        }
+      });
+    }
+    let commerceBundle = '';
+    const commerceBundleProducts = $(response).find('.ais-FrequentlyBoughtTogether-item');
+    if (commerceBundleProducts.length > 0) {
+      commerceBundle = $(response).html();
+    }
+    window.recommendation.addWidget(
+      frequentlyBoughtTogether({
+        container: '#frequentlyBoughtTogether',
+        objectIDs: [recommendationObjectId],
+        limit: ACC.algoliaSearch.frequentlyBoughtLimit,
+        cssClasses: {
+          list: 'carousel__component--carousel js-owl-carousel js-owl-accordion owl-carousel owl-theme',
+        },
+        transformItems(items, response) {
+          ACC.algoliaSearch.recommendationList = items;
+          const itemsWithQueryID = items.map(item => {
+            return {...item, __queryID: response.results.queryID};
+          });
+          if (!commerceBundleProducts || commerceBundleProducts.length === 0) {
+            return itemsWithQueryID;
+          }
+          const commerceProductCode = (commerceBundleProducts.find('.product-component')).toArray().map(item => $(item).data('product-code').toString());
+          return itemsWithQueryID.filter(item => commerceProductCode.indexOf(item.yCArticleNo) < 0);
+        },
+        queryParameters: {
+          filters: 'isObsolete:false AND isReplacementFlag:false',
+          clickAnalytics: true
+        },
+        templates: {
+          empty(_, { html }) {
+            if (commerceBundleProducts.length > 0) {
+              $('#frequentlyBoughtTogether').closest('.accordion-container').show();
+              setTimeout(() => {
+                $('#frequentlyBoughtTogether .ais-FrequentlyBoughtTogether-list').prepend(commerceBundle);
+                ACC.carousel.bindCarousel();
+                ACC.algoliaSearch.enableCommerceBundleCartButton();
+                ACC.algoliaSearch.updateMinOrder();
+                ACC.priceFactory.loadAsyncPrices();
+                $(".panel-default").find(".panel-collapse").removeClass("in");
+                $($(".panel-default:visible").get(0)).find(".panel-collapse").addClass("in");
+                $($(".panel-default:visible").get(0)).find(".icon-down-arrow").addClass("icon-up-arrow").removeClass("icon-down-arrow");
+              }, ACC.algoliaSearch.algoliaDebounceTime)
+              return html`<div class="ais-FrequentlyBoughtTogether-container">
+                <div class="ais-FrequentlyBoughtTogether-list carousel__component--carousel js-owl-carousel js-owl-accordion owl-carousel owl-theme"></div>
+              </div>`;
+            } else {
+              return html``;
+            }
+          },
+          header({ cssClasses, items }, { html }) {
+            if (items.length > 0) {
+              $('#frequentlyBoughtTogether').closest('.accordion-container').show();
+            }
+            return html`<div class="bought-together-header"></div>`;
+          },
+          item(recommendation, { html }) {
+            $('.bought-together-header').remove();
+            window.clearTimeout(window.carouselTimeout);
+            window.carouselTimeout = setTimeout(() => {
+              if (commerceBundleProducts.length > 0) {
+                $('#frequentlyBoughtTogether .ais-FrequentlyBoughtTogether-list').prepend(commerceBundle);
+              }
+              ACC.carousel.bindCarousel();
+              ACC.algoliaSearch.enableCommerceBundleCartButton();
+              ACC.algoliaSearch.updateMinOrder();
+              ACC.priceFactory.loadAsyncPrices();
+              $(".panel-default").find(".panel-collapse").removeClass("in");
+              $($(".panel-default:visible").get(0)).find(".panel-collapse").addClass("in");
+              $($(".panel-default:visible").get(0)).find(".icon-down-arrow").addClass("icon-up-arrow").removeClass("icon-down-arrow");
+            }, ACC.algoliaSearch.algoliaDebounceTime);
+            return html`${ACC.algoliaSearch.renderFrequentlyBoughtTogether(recommendation)}`;
+          }
+        }
+      })
+    );
+    if (!ACC.algoliaSearch.recommendationStarted) {
+      window.recommendation.start();
+      ACC.algoliaSearch.recommendationStarted = true;
+    } else {
+      window.recommendation.refresh();
+    }
+  },
+  renderFrequentlyBoughtTogether: function(boughtTogetherItem) {
+    const recommendationLayout = ACC.algoliaSearch.renderLarge1Product(boughtTogetherItem);
+    return `<div class="accordion-content-container">${recommendationLayout}</div>`;
+  },
+  initFrequentlyBoughtTogether: function() {
+    const objectId = $('.product-component.product-size-xl-container').data('product-code').toString();
+    const url = `/pbundle/pdpview?code=${objectId}&mode=FrequentlyBought`;
+    $.ajax({
+      url: url,
+      cache: false,
+      type: 'GET',
+      dataType: 'html',
+      success: function (response) {
+        ACC.algoliaSearch.initAlgoliaFrequentlyBoughtTogether(response);
+      }
+    });
+  },
+  enableCommerceBundleCartButton: function() {
+    const commerceBundleCartButtons = $('.ais-FrequentlyBoughtTogether-item[data-commerce-bundle] .js-add-to-cart');
+    commerceBundleCartButtons.toArray().forEach(button => {
+      if ($(button).data('allow-to-buy') === true) {
+        $(button).prop('disabled', false);
+      } else {
+        $(button).prop('disabled', true);
+      }
+    });
+  },
+  initAlgoliaProductBundleItems: function(productCodes, response, globalProperties, sourceProduct, selector) {
+    if (!productCodes) return;
+    const recommendedProducts = instantsearch.widgets.frequentlyBoughtTogether;
+    if (window[globalProperties]) {
+      window[globalProperties].dispose();
+    }
+    const searchClient = window.algoliasearch(ACC.config.algoliaApplicationId, ACC.config.algoliaSearchKey, {
+      responsesCache: ACC.algoliaSearch.createBrowserLocalStorageCache({ key: 'caching-response', timeToLive: ACC.algoliaSearch.cachingTTL}),
+      requestsCache: ACC.algoliaSearch.createBrowserLocalStorageCache({ key: 'caching-request', timeToLive: ACC.algoliaSearch.cachingTTL}),
+    });
+    window[globalProperties] = window.instantsearch({
+      searchClient,
+      indexName: ACC.config.algoliaIndex,
+      insights: {
+        insightsClient: window.aa,
+        insightsInitParams: {
+          useCookie: true
+        }
+      }
+    });
+    const container = selector || '#productRecommendation';
+    let commerceBundle = '';
+    const commerceBundleProducts = $(response).find('.ais-FrequentlyBoughtTogether-item');
+    if (commerceBundleProducts.length > 0) {
+      commerceBundle = $(response).find('.ls-product-bundle-pdp-carousel-items').html() || $(response).find('.ls-category-atc-carousel-items').html() ||
+        $(response).find('.ls-cart-bundle-items').html();
+    }
+    const listClasses = selector ? 'carousel__component--carousel js-owl-carousel js-owl-cartBundles ls-carousel-content owl-carousel owl-theme' : 'carousel__component--carousel js-owl-carousel js-owl-productBundles ls-carousel-content owl-carousel owl-theme';
+    const recommendProductWidget = recommendedProducts({
+      container: container,
+      objectIDs: productCodes.slice(0, ACC.algoliaSearch.maxRecommendationObject),
+      limit: ACC.algoliaSearch.productBundlesLimit * productCodes.length,
+      cssClasses: {
+        list: listClasses
+      },
+      transformItems(items, response) {
+        ACC.algoliaSearch.recommendationList = items;
+        const filterCartItems = items.filter(item => productCodes.indexOf(item.yCArticleNo) < 0);
+        const itemsWithQueryID = filterCartItems.map(item => {
+          return {...item, __queryID: response.results.queryID};
+        });
+        if (!commerceBundleProducts || commerceBundleProducts.length === 0) {
+          return itemsWithQueryID;
+        }
+        const commerceProductCode = (commerceBundleProducts.find('.product-component')).toArray().map(item => $(item).data('product-code').toString());
+        return itemsWithQueryID.filter(item => commerceProductCode.indexOf(item.yCArticleNo) < 0).slice(0, (ACC.algoliaSearch.frequentlyBoughtLimit * productCodes.length) - commerceProductCode.length);
+      },
+      queryParameters: {
+        filters: 'isObsolete:false AND isReplacementFlag:false',
+        clickAnalytics: true
+      },
+      templates: {
+        empty(_, { html }) {
+          if (commerceBundleProducts.length > 0) {
+            setTimeout(() => {
+              $(`${container} .ais-FrequentlyBoughtTogether-list`).prepend(commerceBundle);
+              ACC.carousel.bindCarousel();
+              ACC.algoliaSearch.enableCommerceBundleCartButton();
+              if (selector) {
+                $('.product-recommendation-component').show();
+              } else {
+                $('.ls-popup-outer')?.show();
+              }
+              ACC.algoliaSearch.updateMinOrder();
+              ACC.priceFactory.loadAsyncPrices();
+            }, ACC.algoliaSearch.algoliaDebounceTime);
+            return html`<div class="ais-FrequentlyBoughtTogether-container">
+              <div class="ais-FrequentlyBoughtTogether-list ${listClasses}"></div>
+            </div>`;
+          } else {
+            $('.ls-popup-outer').remove();
+            document.body.classList.remove('ls-popup-open');
+            return html``;
+          }
+        },
+        header({ cssClasses, items }, { html }) {
+          return html`<div class="bought-together-header"></div>`;
+        },
+        item(recommendation, { html }) {
+          window.clearTimeout(window.carouselBundleTimeout);
+          window.carouselBundleTimeout = setTimeout(() => {
+            if (commerceBundleProducts.length > 0) {
+              $(`${container} .ais-FrequentlyBoughtTogether-list`).prepend(commerceBundle);
+            }
+            $(`${container} .ais-FrequentlyBoughtTogether-title`).remove();
+            ACC.carousel.bindCarousel();
+            ACC.algoliaSearch.enableCommerceBundleCartButton();
+            ACC.algoliaSearch.updateMinOrder();
+            ACC.priceFactory.loadAsyncPrices();
+            if (selector) {
+              $('.product-recommendation-component').show();
+            } else {
+              $('.ls-popup-outer')?.show();
+            }
+          }, ACC.algoliaSearch.algoliaDebounceTime);
+          return html`${ACC.algoliaSearch.renderProductBundles(recommendation, html, sourceProduct)}`;
+        }
+      }
+    });
+    window[globalProperties].addWidget(recommendProductWidget);
+    window[globalProperties].start();
+  },
+  renderProductBundles: function(item, html, sourceProduct) {
+    const replacementProduct = item.productReferences?.find(ref => ref.referenceType === ACC.algoliaSearch.referenceType.replacement);
+    const replacementTarget = replacementProduct?.target || undefined;
+    const toolTips = sourceProduct ? `<div class="product-bundle-tooltip">
+        <div class="product-bundle-tooltip-icon ls-icon-tooltips">
+          <div class="bundle-tooltip-desc">${sourceProduct.split(', ').length > 1 ? ACC.algoliaSearch.getTranslation('bundleCartTooltip') : ACC.algoliaSearch.getTranslation('bundleTooltip', [sourceProduct])}</div>
+        </div>
+      </div>` : '';
+    return `<div class="product-display-md1-container product-component ls-product-show-info"
+      data-state-check="${item.addToCartDisabled}" data-product-code="${item.objectID}"
+      data-queryid="${item.__queryID || ''}"
+      data-live-price-bucket="medium1"
+      data-license="${item.isLicense}"
+      data-live-price="${!item.isObsolete && item.lsproductType !== ACC.algoliaSearch.productType.MTO}"
+      data-brand-name="${item.brandName || ''}"
+      data-category-name="${item.categories[0] || ''}">
+      <div class="product-display-md1-block flexbox flex-col">
+        <div class="favorites-button-container">
+          ${toolTips}
+          ${ACC.algoliaSearch.renderFavorites(item)}
+        </div>
+        <div class="product-display-top">
+          <div class="product-display-image-container">
+            ${item.isPromotion ? html`${ACC.algoliaSearch.getPromoTag()}` : ''}
+            ${item.goRewards ? html`${ACC.algoliaSearch.getGoRewardsTag(item)}` : ''}
+            <div class="product-image-container">
+              ${ACC.algoliaSearch.renderImage(item)}
+            </div>
+          </div>
+          <div class="product-info-content-container">
+            <div class="product-name-container">
+              <div class="product-display-name">
+                <div class="product-pdp-name item-name text-left text-line3">
+                  <a href="${item.url}" target="_self">
+                    ${item.identifier}
+                  </a>
+                </div>
+              </div>
+             </div>
+          </div>
+          <div class="product-display-info-container">
+            <div class="product-information-content flexbox flex-col">
+              <div class="product-information-icon inline-pdp-text">
+                <div class="product-icons-container flexbox"></div>
+                <div class="product-pdp-txt-B2B"></div>
+              </div>
+              <div class="product-information-code flexbox">
+                <div class="product-code-label">
+                  ${ACC.algoliaSearch.getTranslation('productCode', [item.displayCode || item.yCArticleNo || item.objectID])}
+                </div>
+              </div>
+              <div class="product-information-desc">
+                ${item.summary}
+              </div>
+            </div>
+          </div>
+          <div class="product-display-buttons-container">
+            <div class="product-information-buttons flexbox flex-col" data-obsolete="${item.isObsolete}" data-replacements="${replacementTarget}">
+              ${item.isObsolete || replacementTarget ? ACC.algoliaSearch.renderReplacement(item, replacementTarget) :
+      item.lsproductType === ACC.algoliaSearch.productType.MTO ? ACC.algoliaSearch.renderMakeToOrder(item) :
+        `<div class="product-price-information flexbox">
+                ${ACC.algoliaSearch.getPromotionIcons(item)}
+                ${ACC.algoliaSearch.renderPrice(item)}
+              </div>
+              <div class="product-button-container flexbox">
+                <div class="product-quantity-container">
+                  ${ACC.algoliaSearch.renderQuantitySelector(item)}
+                  <div class="product-quantity-helper-content flexbox flex-col">
+                    ${ACC.algoliaSearch.renderQuantityHelper(item)}
+                    <div class="product-helper-text">
+                      ${ACC.algoliaSearch.renderMinOrderInfo(item)}
+                    </div>
+                  </div>
+                </div>
+                <div class="product-button-content-container flex-1">
+                  ${ACC.algoliaSearch.renderAddToCart(item)}
+                  ${ACC.algoliaSearch.renderLicenseTooltip(item)}
+                  ${ACC.algoliaSearch.renderProductBundle(item)}
+                </div>
+              </div>`}
+              <div id="priceTracking" class="display-none"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  },
+  bindCartProductBundle: function() {
+    ACC.algoliaSearch.getCommerceCartBundle().then(response => {
+      const productList = $(response).find('.ls-cart-bundle-items').data('product-list').toString();
+      if (productList.length === 0) return;
+      const productCodes = productList.split(', ');
+      ACC.algoliaSearch.initAlgoliaProductBundleItems(productCodes, response, 'cartBundles', productList, '#cart-bundle-items');
+    });
+  },
+  getCommerceCartBundle: function() {
+    const url = '/pbundle/algolia';
+    return new Promise((resolve, reject) => {
+      $.ajax({
+        url: url,
+        cache: false,
+        type: 'GET',
+        dataType: 'html',
+        success: function (response) {
+          resolve(response);
+        },
+        error: function (err) {
+          reject(err);
+        }
+      });
+    });
+  },
+  checkAlgoliaBundle: function (productCodes) {
+    return new Promise((rs, rj) => {
+      if (!productCodes) return;
+      const recommendedProducts = instantsearch.widgets.frequentlyBoughtTogether;
+      if (window.toCheckout) {
+        window.toCheckout.dispose();
+      }
+      const element = document.createElement('div')
+      element.id = 'to-checkout';
+      const searchClient = window.algoliasearch(ACC.config.algoliaApplicationId, ACC.config.algoliaSearchKey, {
+        responsesCache: ACC.algoliaSearch.createBrowserLocalStorageCache({ key: 'caching-response', timeToLive: ACC.algoliaSearch.cachingTTL}),
+        requestsCache: ACC.algoliaSearch.createBrowserLocalStorageCache({ key: 'caching-request', timeToLive: ACC.algoliaSearch.cachingTTL}),
+      });
+      window.toCheckout = window.instantsearch({
+        searchClient,
+        indexName: ACC.config.algoliaIndex
+      });
+      window.toCheckout.addWidget(recommendedProducts({
+        container: element,
+        objectIDs: productCodes.slice(0, ACC.algoliaSearch.maxRecommendationObject),
+        limit: ACC.algoliaSearch.productBundlesLimit * productCodes.length,
+        transformItems(items) {
+          ACC.algoliaSearch.recommendationList = items;
+          const appliedFilterItems = items.filter(item => productCodes.indexOf(item.yCArticleNo) < 0)
+          appliedFilterItems.length > 0 ? rs(true) : rs(false);
+          return items;
+        },
+        queryParameters: {
+          filters: 'isObsolete:false AND isReplacementFlag:false',
+          clickAnalytics: true
+        }
+      }));
+      window.toCheckout.start();
+    });
+  }
+};

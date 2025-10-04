@@ -1,0 +1,47 @@
+9mm Bending MDF Cross Cut:
+  sheet_size_mm:
+  - 1210
+  - 2410
+  price_per_m2_aud_ex_gst: 22.29
+G PT Black Woodmatt 18mm MDF - 36x18:
+  sheet_size_mm:
+  - 1810
+  - 3620
+  price_per_m2_aud_ex_gst: 68.72
+G PT Prime Oak Woodmatt 18mm MDF - 36x18:
+  sheet_size_mm:
+  - 1810
+  - 3620
+  price_per_m2_aud_ex_gst: 68.72
+LX White Melamine 16mm:
+  sheet_size_mm:
+  - 1810
+  - 3630
+  price_per_m2_aud_ex_gst: 19.02
+Sheet Size - 1210 x 2410:
+  sheet_size_mm:
+  - 1210
+  - 2410
+  price_per_m2_aud_ex_gst: 22.29
+Sheet Size - 1810 x 3620:
+  sheet_size_mm:
+  - 1810
+  - 3620
+  price_per_m2_aud_ex_gst: 68.72
+Sheet Size - 1810 x 3630:
+  sheet_size_mm:
+  - 1810
+  - 3630
+  price_per_m2_aud_ex_gst: 19.02
+G PT Black Woodmatt 16mm MDF - 31x 12:
+  price_per_m2_aud_ex_gst: 60.0
+G PT Prime Oak Woodmatt 16mm MDF - 31x12:
+  price_per_m2_aud_ex_gst: 60.0
+LX Aquaban White Flint 38mm - 3660x1840:
+  price_per_m2_aud_ex_gst: 30.0
+PT Black Matt 16mm PBR - 24x12:
+  price_per_m2_aud_ex_gst: 25.0
+PT Oyster Grey 16mm PBR - 24x12:
+  price_per_m2_aud_ex_gst: 25.0
+PT Taj Mahal 0.7 HPL 36x13:
+  price_per_m2_aud_ex_gst: 70.0

@@ -1,0 +1,12 @@
+pandas
+openpyxl
+xlrd
+PyYAML
+typer
+jinja2
+fastapi
+uvicorn
+python-multipart
+beautifulsoup4
+lxml
+rapidfuzz

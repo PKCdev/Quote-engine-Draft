@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ project_name }} — Client Quote</title>
+  <style>
+    :root { --accent: #3498db; --hdr: #2c3e50; --bg: #f5f5f5; --line:#e5e7eb; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: var(--bg); font-size: 12px; line-height: 1.4; }
+    .container { max-width: 1400px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: var(--hdr); text-align: center; border-bottom: 3px solid var(--accent); padding-bottom: 10px; margin-top:0; }
+    h2 { color: #34495e; background: #ecf0f1; padding: 10px; margin-top: 30px; border-left: 4px solid var(--accent); }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; background: white; font-size: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: var(--accent); color: #fff; font-weight: bold; }
+    .number { text-align: right; }
+    .section-total { background: #e8f4fd; font-weight: bold; }
+    .header-block { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; border-bottom:2px solid var(--line); padding-bottom:15px; }
+    .header-col { flex:1; max-width:45%; }
+    .right { text-align:right; }
+    .summary-box { background: var(--hdr); color: #fff; padding: 16px; border-radius: 6px; margin: 20px 0; }
+    .summary-row { display:flex; justify-content:space-between; margin: 6px 0; font-size: 16px; }
+    .final-total { border-top: 2px solid #fff; margin-top: 10px; padding-top: 10px; font-size: 22px; font-weight: bold; }
+    .excluded { background: #ffe6e6; color: #d63031; font-style: italic; }
+    .notes { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .room-title { background: var(--hdr); color:#fff; padding: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>{{ project_name }} — Detailed Quote</h1>
+
+    <div class="header-block">
+      <div class="header-col" style="padding-right:20px;">
+        <h3 style="margin:0; font-size:16px; color:#374151; border-bottom:1px solid #d1d5db; padding-bottom:4px;">Client</h3>
+        <p style="margin:6px 0; line-height:1.4; font-size:14px;">
+          {% if client.name %}<strong>{{ client.name }}</strong><br>{% endif %}
+          {% if client.title %}{{ client.title }}<br>{% endif %}
+          {% if client.phone %}<span style="color:#6b7280;">M:</span> {{ client.phone }}<br>{% endif %}
+          {% if client.email %}<span style="color:#6b7280;">E:</span> <a href="mailto:{{ client.email }}" style="color:var(--accent); text-decoration:none;">{{ client.email }}</a><br>{% endif %}
+          {% if client.address %}<span style="color:#6b7280;">A:</span> {{ client.address }}<br>{% endif %}
+          {% if client.website %}<a href="{{ client.website }}" target="_blank" style="color:var(--accent); text-decoration:none;">{{ client.website }}</a>{% endif %}
+        </p>
+      </div>
+      <div class="header-col right" style="padding-left:20px; border-left:1px solid var(--line);">
+        <h3 style="margin:0; font-size:16px; color:#374151; border-bottom:1px solid #d1d5db; padding-bottom:4px;">Company</h3>
+        <p style="margin:6px 0; line-height:1.4; font-size:14px;">
+          {% if company.name %}<strong>{{ company.name }}</strong><br>{% endif %}
+          {% if company.address %}{{ company.address }}<br>{% endif %}
+          {% if company.phone %}<span style="color:#6b7280;">M:</span> {{ company.phone }}<br>{% endif %}
+          {% if company.abn %}<span style="color:#6b7280;">ABN:</span> {{ company.abn }}{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-row"><span>Materials</span><span>{{ money(category_display.materials or 0) }}</span></div>
+      <div class="summary-row"><span>Edgeband</span><span>{{ money(category_display.edgeband or 0) }}</span></div>
+      <div class="summary-row"><span>Hardware</span><span>{{ money(category_display.hardware or 0) }}</span></div>
+      <div class="summary-row"><span>CNC & Panel Saw</span><span>{{ money((category_display.cnc or 0) + (category_display.panel_saw or 0)) }}</span></div>
+      <div class="summary-row"><span>Assembly</span><span>{{ money(category_display.assembly or 0) }}</span></div>
+      <div class="summary-row"><span>Install</span><span>{{ money(category_display.install or 0) }}</span></div>
+      <div class="summary-row"><span>Overhead</span><span>{{ money(category_display.overhead or 0) }}</span></div>
+      {% if allowances_display and allowances_display > 0 %}
+      <div class="summary-row"><span>Allowances (Truck, Consumables, Disposal)</span><span>{{ money(allowances_display) }}</span></div>
+      {% endif %}
+      <div class="summary-row"><span>Subtotal</span><span>{{ money(subtotal_display) }}</span></div>
+      {% if surcharge_pct and surcharge_pct > 0 %}
+      <div class="summary-row"><span>Warranty ({{ policy.surcharges.warranty_percent or 0 }}%), Contingency ({{ policy.surcharges.contingency_percent or 0 }}%), Merchant ({{ policy.surcharges.merchant_percent or 0 }}%)</span><span>{{ money(surcharge_display) }}</span></div>
+      {% endif %}
+      <div class="summary-row"><span>Price (ex-GST)</span><span>{{ money(price.price_ex_gst) }}</span></div>
+      <div class="summary-row"><span>GST ({{ gst_percent }}%)</span><span>{{ money(price.gst) }}</span></div>
+      <div class="summary-row final-total"><span>Grand Total</span><span>{{ money(price.total_inc_gst) }}</span></div>
+    </div>
+
+    <h2>1. Sheet Stock Materials{% if waste_percent %} (Including {{ waste_percent }}% Waste){% endif %}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Material</th>
+          <th>Sheet Size</th>
+          <th>Qty</th>
+          <th>Area (m²)</th>
+          <th>Rate/m²</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in materials_breakdown["items"] %}
+        <tr>
+          <td>{{ m.material }}</td>
+          <td>{{ m.sheet_size }}</td>
+          <td class="number">{{ m.qty }}</td>
+          <td class="number">{{ '%.3f'|format(m.area_m2) }}</td>
+          <td class="number">{{ money(m.price_per_m2) }}</td>
+          <td class="number">{{ money(m.cost) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-total">
+          <td colspan="5"><strong>Sheet Stock Total</strong></td>
+          <td class="number"><strong>{{ money(materials_breakdown.total or 0) }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. Hardware Costs</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Hardware Item</th>
+          <th>Qty</th>
+          <th>Unit Cost</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hardware %}
+        <tr>
+          <td>{{ h.name }}</td>
+          <td class="number">{{ h.qty }}</td>
+          <td class="number">{% if h.unit_cost %}{{ money(h.unit_cost) }}{% else %}-{% endif %}</td>
+          <td class="number">{% if h.total_cost %}{{ money(h.total_cost) }}{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-total">
+          <td colspan="3"><strong>Hardware Total</strong></td>
+          <td class="number"><strong>{{ money(category_totals.hardware or 0) }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Buyout / Allowances</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Total Cost</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in buyouts %}
+        <tr class="excluded">
+          <td>{{ b.description }}</td>
+          <td class="number">{{ b.qty }}</td>
+          <td class="number">TO BE QUOTED</td>
+          <td>TBQ</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>4. Labor Costs</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Labor Type</th>
+          <th>Hours</th>
+          <th>Rate/Hour</th>
+          <th>Total Cost</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Workshop Assembly</td>
+          <td class="number">{{ assembly.hours }}</td>
+          <td class="number">—</td>
+          <td class="number">{{ money(assembly.cost) }}</td>
+          <td>Cabinet assembly in workshop</td>
+        </tr>
+        <tr>
+          <td>Installation</td>
+          <td class="number">{{ install.hours }}</td>
+          <td class="number">—</td>
+          <td class="number">{{ money(install.cost) }}</td>
+          <td>On-site installation</td>
+        </tr>
+        <tr class="section-total">
+          <td colspan="3"><strong>Labor Total</strong></td>
+          <td class="number"><strong>{{ money((category_totals.assembly or 0) + (category_totals.install or 0)) }}</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    {% if rooms %}
+    <h2>5. Product List by Room</h2>
+    {% for r in rooms %}
+      <h3 class="room-title">{{ r.code }} - {{ r.name }} ({{ r.count }} Products)</h3>
+      <table>
+        {% for p in r.products %}
+        <tr>
+          <td><strong>{{ p.index }}</strong></td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.dimensions }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% endfor %}
+    {% endif %}
+
+    {% if policy.payment_schedule %}
+    <div style="background: #f3f4f6; color: #1f2937; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top:0;">PAYMENT SCHEDULE</h3>
+      <table style="width:100%;">
+        {% for m in policy.payment_schedule %}
+        {% set base_amt = (price.total_inc_gst if (m.base=='grand_total') else price.price_ex_gst) %}
+        {% set amt = (m.percent/100.0) * base_amt %}
+        <tr>
+          <td><strong>{{ m.name }} ({{ m.percent }}%):</strong></td>
+          <td class="number"><strong>{{ money(amt) }}</strong></td>
+          <td>{{ m.description }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="notes">
+      <h3>Important Notes:</h3>
+      <ul>
+        <li><strong>Validity:</strong> Quote valid for {{ policy.validity_days or 30 }} days</li>
+        <li>Prices in AUD; GST {{ gst_percent }}%.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

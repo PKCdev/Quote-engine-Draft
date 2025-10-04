@@ -1,0 +1,61 @@
+defaults:
+  drafting_hours: 10
+  pm_hours: 10
+  install_hours: 0
+labor_rates:
+  cad: 120
+  cnc: 312.5
+  handling: 110
+  assembly: 110
+  install: 95
+  shop: 110
+  drafting: 120
+  pm: 120
+  installer_billed: 95
+assembly:
+  base_minutes_per_m2: 44.44
+  min_minutes_per_product: 10
+install:
+  base_minutes_per_m2: 30
+  min_minutes_per_product: 5
+edgeband:
+  minutes_per_edge: 1.0
+  minutes_per_m: 0.0
+  setup_minutes: 0
+machine_rates:
+  cnc: 120
+  edgebander: 120
+  panel_saw: 120
+machine_rental:
+  cnc: 210
+  edgebander: 110
+  panel_saw: 120
+machine_adder:
+  cnc: 140
+  edgebander: 150
+contingency_factor: 1.0
+cnc_area:
+  sqm_per_hour: 10
+panel_saw:
+  minutes_per_sheet: 15
+overhead:
+  monthly_aud: 6841.0
+  internal_hours: 180.0
+install_team:
+  two_person_fraction: 0.8
+  one_person_fraction: 0.2
+  two_person_rate: 190
+  one_person_rate: 95
+taxes:
+  gst: 0.1
+subcontractors:
+  markup_percent: 0
+wage_rates:
+  assembly: 40
+  install: 45
+my_rate_per_hour: 95
+finger_pull:
+  per_part_fee: 15.5
+  pickup_fee: 35
+  assembly_minutes_per_part: 10
+  install_minutes_per_part: 2

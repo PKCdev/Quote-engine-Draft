@@ -1,0 +1,11 @@
+entries:
+  - supplier: PT
+    finish: woodmatt
+    substrate: MDF
+    thickness_mm: 18
+    price_per_m2_aud_ex_gst: 68.72
+  - supplier: LX
+    finish: matt
+    substrate: MDF
+    thickness_mm: 16
+    price_per_m2_aud_ex_gst: 19.02

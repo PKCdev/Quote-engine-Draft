@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ quote.project.name }} - Client Quote</title>
+  <style>
+    :root {
+      --accent: {{ policy.style.accent }};
+      --hdr: {{ policy.style.header }};
+      --bg: #f5f5f5;
+      --fg: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --panel: #ecf0f1;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 20px;
+      background-color: var(--bg);
+      font-size: {{ policy.style.body_font_px }}px;
+      line-height: 1.4;
+      color: var(--fg);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: var(--hdr);
+      text-align: center;
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 10px;
+      margin-top: 0;
+    }
+    h2 {
+      color: #34495e;
+      background: var(--panel);
+      padding: 10px;
+      margin-top: 30px;
+      border-left: 4px solid var(--accent);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      background: white;
+      font-size: {{ policy.style.table_font_px }}px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: var(--accent);
+      color: white;
+      font-weight: bold;
+    }
+    .number { text-align: right; }
+    .section-total { background-color: #e8f4fd; font-weight: bold; }
+    .notes { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .excluded { background: #ffe6e6; color: #d63031; font-style: italic; }
+    .header-block { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; border-bottom:2px solid var(--line); padding-bottom:15px; }
+    .header-col { flex:1; max-width:45%; }
+    .right { text-align:right; }
+    .muted { color: var(--muted); }
+    .summary-box { background: var(--hdr); color: #fff; padding: 16px; border-radius: 6px; margin: 20px 0; }
+    .summary-row { display:flex; justify-content:space-between; margin: 6px 0; font-size: 16px; }
+    .final-total { border-top: 2px solid #fff; margin-top: 10px; padding-top: 10px; font-size: 22px; font-weight: bold; }
+    .room-title { background: var(--hdr); color:#fff; padding: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>{{ quote.project.name }} - Detailed Quote</h1>
+
+    <div class="header-block">
+      <div class="header-col" style="padding-right:20px;">
+        <h3 style="margin:0; font-size:16px; color:#374151; border-bottom:1px solid #d1d5db; padding-bottom:4px;">Client</h3>
+        <p style="margin:6px 0; line-height:1.4; font-size:14px;">
+          <strong>{{ quote.client.name }}</strong>{% if quote.client.title %}<br>{{ quote.client.title }}{% endif %}<br>
+          {% if quote.client.phone %}<span class="muted">M:</span> {{ quote.client.phone }}<br>{% endif %}
+          {% if quote.client.email %}<span class="muted">E:</span> <a href="mailto:{{ quote.client.email }}" style="color:var(--accent); text-decoration:none;">{{ quote.client.email }}</a><br>{% endif %}
+          {% if quote.client.address %}<span class="muted">A:</span> {{ quote.client.address }}<br>{% endif %}
+          {% if quote.client.website %}<a href="{{ quote.client.website }}" target="_blank" style="color:var(--accent); text-decoration:none;">{{ quote.client.website }}</a>{% endif %}
+        </p>
+      </div>
+      <div class="header-col right" style="padding-left:20px; border-left:1px solid var(--line);">
+        <h3 style="margin:0; font-size:16px; color:#374151; border-bottom:1px solid #d1d5db; padding-bottom:4px;">Company</h3>
+        <p style="margin:6px 0; line-height:1.4; font-size:14px;">
+          <strong>{{ quote.company.name }}</strong><br>
+          {% if quote.company.address %}{{ quote.company.address }}<br>{% endif %}
+          {% if quote.company.phone %}<span class="muted">M:</span> {{ quote.company.phone }}<br>{% endif %}
+          {% if quote.company.abn %}<span class="muted">ABN:</span> {{ quote.company.abn }}{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-row"><span>Materials</span><span>{{ format_money(materials_total) }}</span></div>
+      <div class="summary-row"><span>Hardware</span><span>{{ format_money(hardware_total) }}</span></div>
+      <div class="summary-row"><span>Buyout (Included)</span><span>{{ format_money(buyout_included_total) }}</span></div>
+      <div class="summary-row"><span>Labor</span><span>{{ format_money(labor_total) }}</span></div>
+      {% if design_fee and design_fee > 0 %}<div class="summary-row"><span>Design Fee</span><span>{{ format_money(design_fee) }}</span></div>{% endif %}
+      {% if delivery and delivery > 0 %}<div class="summary-row"><span>Delivery</span><span>{{ format_money(delivery) }}</span></div>{% endif %}
+      {% if contingency and contingency > 0 %}<div class="summary-row"><span>Contingency</span><span>{{ format_money(contingency) }}</span></div>{% endif %}
+      {% if discount and discount > 0 %}<div class="summary-row"><span>Discount</span><span>-{{ format_money(discount) }}</span></div>{% endif %}
+      <div class="summary-row"><span>Subtotal</span><span>{{ format_money(subtotal) }}</span></div>
+      <div class="summary-row"><span>GST ({{ policy.gst_percent }}%)</span><span>{{ format_money(gst) }}</span></div>
+      <div class="summary-row final-total"><span>Grand Total</span><span>{{ format_money(grand_total) }}</span></div>
+    </div>
+
+    <h2>1. Sheet Stock Materials (Including {{ policy.waste_percent_default }}% Waste)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Material</th>
+          <th>Thickness</th>
+          <th>Sheet Size</th>
+          <th>Qty</th>
+          <th>Unit Cost</th>
+          <th>Subtotal</th>
+          <th>{{ policy.waste_percent_default }}% Waste</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in materials %}
+        <tr>
+          <td>{{ m.material }}</td>
+          <td>{{ m.thickness }}</td>
+          <td>{{ m.sheet_size }}</td>
+          <td class="number">{{ m.qty }}</td>
+          <td class="number">{{ format_money(m.unit_cost) }}</td>
+          <td class="number">{{ format_money(m.subtotal) }}</td>
+          <td class="number">{{ format_money(m.waste_cost) }}</td>
+          <td class="number">{{ format_money(m.total_cost) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-total">
+          <td colspan="7"><strong>Sheet Stock Total</strong></td>
+          <td class="number"><strong>{{ format_money(materials_total) }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. Hardware Costs</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Hardware Item</th>
+          <th>Qty</th>
+          <th>Unit Cost</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hardware %}
+        <tr>
+          <td>{{ h.name }}</td>
+          <td class="number">{{ h.qty }}</td>
+          <td class="number">{{ format_money(h.unit_cost) }}</td>
+          <td class="number">{{ format_money(h.total_cost) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-total">
+          <td colspan="3"><strong>Hardware Total</strong></td>
+          <td class="number"><strong>{{ format_money(hardware_total) }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Buyout Materials</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Material</th>
+          <th>Qty</th>
+          <th>Unit</th>
+          <th>Rate/Unit</th>
+          <th>Total Cost</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in buyout %}
+        <tr class="{% if b.status != 'included' %}excluded{% endif %}">
+          <td>{{ b.material }}</td>
+          <td class="number">{{ b.qty }}</td>
+          <td class="number">{{ b.unit }}</td>
+          <td class="number">{% if b.rate_per_unit %}{{ format_money(b.rate_per_unit) }}{% else %}TBQ{% endif %}</td>
+          <td class="number">{% if b.status == 'included' %}{{ format_money(b.total_cost) }}{% else %}TO BE QUOTED{% endif %}</td>
+          <td>{{ b.status | capitalize }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-total">
+          <td colspan="4"><strong>Buyout Materials Total (Included)</strong></td>
+          <td class="number"><strong>{{ format_money(buyout_included_total) }}</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Labor Costs</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Labor Type</th>
+          <th>Hours</th>
+          <th>Rate/Hour</th>
+          <th>Total Cost</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in labor %}
+        <tr>
+          <td>{{ l.category | title }}</td>
+          <td class="number">{{ l.hours }}</td>
+          <td class="number">{{ format_money(l.rate) }}</td>
+          <td class="number">{{ format_money(l.total_cost) }}</td>
+          <td>{{ l.description }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="section-total">
+          <td colspan="3"><strong>Labor Total</strong></td>
+          <td class="number"><strong>{{ format_money(labor_total) }}</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    {% if rooms %}
+    <h2>5. Product List by Room</h2>
+    {% for r in rooms %}
+      <h3 class="room-title">{{ r.code }} - {{ r.name }} ({{ r.count }} Products)</h3>
+      <table>
+        {% for p in r.products %}
+        <tr>
+          <td><strong>{{ p.index }}</strong></td>
+          <td>{{ p.name }}</td>
+          {% if policy.display.show_dimensions %}<td>{{ p.dimensions }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </table>
+    {% endfor %}
+    {% endif %}
+
+    {% if payments %}
+    <div style="background: #f3f4f6; color: #1f2937; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <h3 style="margin-top:0;">PAYMENT SCHEDULE</h3>
+      <table style="width: 100%;">
+        {% for p in payments %}
+        <tr>
+          <td><strong>{{ p.name }} ({{ p.percent }}%):</strong></td>
+          <td class="number"><strong>{{ format_money(p.amount) }}</strong></td>
+          <td>{{ p.description }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="notes">
+      <h3>Important Notes:</h3>
+      <ul>
+        {% for note in quote.notes_inclusions %}
+        <li><strong>INCLUDED:</strong> {{ note }}</li>
+        {% endfor %}
+        {% for opt in quote.optional_upgrades %}
+        <li><strong>OPTIONAL:</strong> {{ opt.name }}{% if opt.price %} ({{ format_money(opt.price) }}){% endif %}</li>
+        {% endfor %}
+        {% for note in quote.notes_exclusions %}
+        <li><strong>EXCLUDED:</strong> {{ note }}</li>
+        {% endfor %}
+        <li><strong>Validity:</strong> Quote valid for {{ policy.validity_days }} days</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Materials Catalog</h1>
+  <form action="/catalogs/materials/edgeband-price" method="post" style="margin-bottom:12px">
+    <label>Global Edgeband Price (AUD per meter)</label>
+    <input name="price_per_m" type="number" step="0.01" value="{{ rates.edgeband.price_per_m or 1.0 }}" />
+    <button class="btn" type="submit">Save</button>
+  </form>
+  <table>
+    <tr><th>Name (key)</th><th>Sheet Size (mm)</th><th>Price AUD/m²</th></tr>
+    {% for name, rec in materials.items() %}
+    <tr>
+      <td>{{ name }}</td>
+      <td>{% if rec.sheet_size_mm %}{{ rec.sheet_size_mm[0] }} x {{ rec.sheet_size_mm[1] }}{% else %}-{% endif %}</td>
+      <td>
+        {% set price_per_m2 = rec.get('price_per_m2_aud_ex_gst') %}
+        {% set unit_price = rec.get('unit_cost_aud_ex_gst') %}
+        <form action="/catalogs/materials/set_price" method="post" style="display:flex; gap:4px; align-items:center;">
+          <input type="hidden" name="name" value="{{ name }}" />
+          <input type="hidden" name="origin" value="catalog" />
+          {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}" />{% endif %}
+          {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+          <input name="price_per_m2" type="number" step="0.01" value="{{ '%.2f'|format(price_per_m2 | float) if price_per_m2 is not none else '' }}" placeholder="Price/m²" style="width:8em;" />
+          <input name="unit_price" type="number" step="0.01" value="{{ '%.2f'|format(unit_price | float) if unit_price is not none else '' }}" placeholder="Unit" style="width:7em;" />
+          <button class="btn" type="submit">Save</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Add New Material</h2>
+  <form method="post" action="/catalogs/materials/add">
+    <input type="hidden" name="origin" value="catalog" />
+    {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}" />{% endif %}
+    {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+    <div class="row"><label>Name (exact as in WOS)</label><br><input name="name" type="text" placeholder="e.g., LX White Melamine 16mm" value="{{ prefill.name if prefill else request.query_params.get('name','') }}" required /></div>
+    <div class="row"><label>Price AUD per m²</label><br><input name="price_per_m2" type="number" step="0.01" required /></div>
+    <div class="row"><label>Sheet Size (mm, optional)</label><br>
+      <input name="sheet_w" type="number" step="1" placeholder="Width mm" /> ×
+      <input name="sheet_h" type="number" step="1" placeholder="Height mm" />
+    </div>
+    <button class="btn" type="submit">Add</button>
+  </form>
+
+  <h2>Add Attribute-Based Price</h2>
+  <form method="post" action="/catalogs/materials/add_attr">
+    <input type="hidden" name="origin" value="catalog" />
+    {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}" />{% endif %}
+    {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+    <div class="row"><label>Supplier</label><br>
+      <input name="supplier" type="text" placeholder="PT / LX / GBI" value="{{ prefill.supplier if prefill else '' }}" required />
+    </div>
+    <div class="row"><label>Finish</label><br>
+      <input name="finish" type="text" placeholder="woodmatt / matt / ravine" value="{{ prefill.finish if prefill else '' }}" required />
+    </div>
+    <div class="row"><label>Thickness (mm)</label><br>
+      <input name="thickness_mm" type="number" step="0.1" value="{{ prefill.thickness_mm if prefill else '' }}" required />
+    </div>
+    <div class="row"><label>Substrate</label><br>
+      <input name="substrate" type="text" placeholder="MDF / PBD / HPL / CL" value="{{ prefill.substrate if prefill else '' }}" required />
+    </div>
+    <div class="row"><label>Price AUD per m²</label><br>
+      <input name="price_per_m2" type="number" step="0.01" required />
+    </div>
+    <input type="hidden" name="name" value="{{ prefill.name if prefill else '' }}" />
+    <button class="btn" type="submit">Add Attribute Price</button>
+  </form>
+{% endblock %}

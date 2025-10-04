@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ title or 'PKC Quote Engine' }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    nav a { margin-right: 12px; text-decoration: none; color: #1f6feb; }
+    .btn { display: inline-block; padding: 6px 10px; background: #1f6feb; color: #fff; border-radius: 4px; text-decoration: none; }
+    .btn.secondary { background: #555; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    th { background: #f3f6f9; }
+    input[type=text], input[type=number] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    form .row { margin-bottom: 8px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <div>
+      <a href="/" class="btn secondary">Home</a>
+      {% set back_slug = current_project if current_project is defined and current_project else request.query_params.get('project') if request is defined else None %}
+      {% if back_slug %}
+        <a href="/projects/{{ back_slug }}" class="btn secondary">Back to Quote</a>
+      {% endif %}
+    </div>
+    <div><strong>PKC Quote Engine</strong></div>
+    <div>
+      <a class="btn" href="/projects/new">New Quote</a>
+      {% if back_slug %}
+        <a class="btn secondary" href="/catalogs/hardware?project={{ back_slug | urlencode }}">Hardware</a>
+        <a class="btn secondary" href="/catalogs/edgeband?project={{ back_slug | urlencode }}">Edgeband</a>
+        <a class="btn secondary" href="/catalogs/materials?project={{ back_slug | urlencode }}">Materials</a>
+        <a class="btn secondary" href="/overhead?project={{ back_slug | urlencode }}">Overhead</a>
+      {% else %}
+        <a class="btn secondary" href="/catalogs/hardware">Hardware</a>
+        <a class="btn secondary" href="/catalogs/edgeband">Edgeband</a>
+        <a class="btn secondary" href="/catalogs/materials">Materials</a>
+        <a class="btn secondary" href="/overhead">Overhead</a>
+      {% endif %}
+    </div>
+  </header>
+
+  {% block content %}{% endblock %}
+</body>
+</html>

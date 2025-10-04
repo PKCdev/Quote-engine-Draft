@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Edgeband Catalog</h1>
+  <table>
+    <form action="/catalogs/edgeband/update" method="post">
+      <input type="hidden" name="origin" value="catalog" />
+      {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}" />{% endif %}
+      {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+      <tr><th>Spec</th><th>Price/m (AUD)</th><th>Setup (AUD)</th></tr>
+      {% for spec, rec in edgebands.items() %}
+      <tr>
+        <td><input name="spec" value="{{ spec }}" readonly style="width:100%" /></td>
+        <td><input name="price_per_m" type="number" step="0.01" value="{{ rec.price_per_m or 0 }}" /></td>
+        <td><input name="setup_cost" type="number" step="0.01" value="{{ rec.setup_cost or 0 }}" /></td>
+      </tr>
+      {% endfor %}
+      <tr><td colspan="3" style="text-align:right"><button class="btn" type="submit">Save Changes</button></td></tr>
+    </form>
+  </table>
+
+  <h2>Add Edgeband</h2>
+  <form action="/catalogs/edgeband/add" method="post">
+    <input type="hidden" name="origin" value="catalog" />
+    {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}" />{% endif %}
+    {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+    <div class="row"><label>Spec</label><br><input name="spec" type="text" placeholder="e.g., Black Woodmatt 21x 1mm" required /></div>
+    <div class="row"><label>Price/m (AUD)</label><br><input name="price_per_m" type="number" step="0.01" required /></div>
+    <div class="row"><label>Setup (AUD)</label><br><input name="setup_cost" type="number" step="0.01" value="0" /></div>
+    <button class="btn" type="submit">Add</button>
+  </form>
+{% endblock %}

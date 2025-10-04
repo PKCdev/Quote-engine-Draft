@@ -1,0 +1,126 @@
+{
+  "extra_sheet_waste": 0.0,
+  "defaults": {
+    "drafting_hours": 30.0,
+    "pm_hours": 10.0,
+    "install_hours": 0.0
+  },
+  "rates": {
+    "labor_rates": {
+      "shop": 100.0,
+      "drafting": 100.0,
+      "pm": 100.0,
+      "installer_billed": 95.0,
+      "my_rate_per_hour": 95.0
+    },
+    "machine_rates": {
+      "cnc": 350.0,
+      "edgebander": 250.0,
+      "panel_saw": 150.0
+    },
+    "cnc_area": {
+      "sqm_per_hour": 10.0
+    },
+    "panel_saw": {
+      "minutes_per_sheet": 15.0
+    },
+    "assembly": {
+      "base_minutes_per_m2": 44.44,
+      "min_minutes_per_product": 10.0,
+      "setout_minutes_per_product": 5.0
+    },
+    "install": {
+      "base_minutes_per_m2": 60.0,
+      "min_minutes_per_product": 5.0
+    },
+    "edgeband": {
+      "minutes_per_edge": 1.0,
+      "minutes_per_m": 0.0,
+      "setup_minutes": 0.0
+    },
+    "overhead": {
+      "monthly_aud": 5600.0,
+      "internal_hours": 160.0
+    },
+    "install_team": {
+      "two_person_fraction": 0.8,
+      "one_person_fraction": 0.2,
+      "two_person_rate": 200.0,
+      "one_person_rate": 95.0
+    },
+    "subcontractors": {
+      "markup_percent": 0.0
+    },
+    "machine_rental": {
+      "cnc": 210.0,
+      "edgebander": 110.0,
+      "panel_saw": 150.0
+    },
+    "machine_adder": {
+      "cnc": 100.0,
+      "edgebander": 100.0
+    },
+    "contingency_factor": 1.05,
+    "delivery": {
+      "truck_capacity_cbm": 15.0,
+      "load_hours_per_full": 3.0,
+      "unload_hours_per_trip": 0.5,
+      "travel_hours_per_trip": 1.0,
+      "rental_admin_hours": 1.0,
+      "delivery_rate": 110.0
+    },
+    "finger_pull": {
+      "assembly_minutes_per_part": 10.0,
+      "install_minutes_per_part": 2.0
+    }
+  },
+  "assembly_rules": {
+    "minutes_adders": {
+      "drawer": 20.0,
+      "inner_drawer": 20.0,
+      "hinge": 1.0,
+      "foot": 1.0,
+      "bin": 25.0,
+      "hinges_per_door": 2
+    },
+    "install_minutes_adders": {
+      "drawer": 10.0,
+      "inner_drawer": 10.0,
+      "hinge": 5.0,
+      "foot": 1.0,
+      "bin": 30.0
+    }
+  },
+  "policy": {
+    "allowances": {
+      "flat_aud_ex_gst": 650.0
+    },
+    "surcharges": {
+      "warranty_percent": 1.5,
+      "contingency_percent": 5.0,
+      "merchant_percent": 1.0
+    },
+    "target_margin": 0.2,
+    "income_tax_percent": 23.0
+  },
+  "materials": {
+    "9mm Bending MDF Cross Cut": {
+      "panel_saw": true
+    },
+    "LX Aquaban White Flint 38mm - 3660x1840": {
+      "panel_saw": true
+    },
+    "PT Taj Mahal 0.7 HPL 36x13": {
+      "panel_saw": true
+    }
+  },
+  "finger_pull": {
+    "apply_doors": true,
+    "apply_drawers": true,
+    "base_only": true,
+    "subtract_doors": 0,
+    "subtract_drawers": 0,
+    "per_part_fee": 15.5,
+    "pickup_fee": 35.0
+  }
+}

@@ -1,0 +1,41 @@
+currency: AUD
+currency_symbol: "$"
+gst_percent: 10
+waste_percent_default: 8
+target_margin: 0.30
+rounding: 10
+payment_schedule:
+  - name: Design Fee
+    percent: 7
+    description: Project initiation - design, shop drawings & revisions
+    base: grand_total
+  - name: Production Deposit
+    percent: 43
+    description: Upon shop drawing approval - start production & assembly
+    base: grand_total
+  - name: Installation Deposit
+    percent: 30
+    description: Upon delivery to site - before installation commences
+    base: grand_total
+  - name: Final Payment
+    percent: 20
+    description: Upon project completion
+    base: grand_total
+validity_days: 30
+display:
+  show_excluded: true
+  show_dimensions: true
+style:
+  accent: "#3498db"
+  header: "#2c3e50"
+  body_font_px: 12
+  table_font_px: 10
+
+# Optional allowances and surcharges for display/calculation
+allowances:
+  flat_aud_ex_gst: 0
+surcharges:
+  warranty_percent: 0
+  contingency_percent: 0
+  merchant_percent: 0
+income_tax_percent: 0

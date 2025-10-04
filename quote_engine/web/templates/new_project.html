@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>New Quote</h1>
+  <form action="/projects/new" method="post" enctype="multipart/form-data">
+    <div class="row">
+      <label>Project name</label><br>
+      <input type="text" name="name" required placeholder="e.g., Cambridge St" />
+    </div>
+    <div class="row">
+      <label>Work Order Summary (.xlsx)</label><br>
+      <input type="file" name="wos" accept=".xlsx,.xlsm,.xls" required />
+    </div>
+    <div class="row">
+      <label>Processing Station Parts (.csv)</label><br>
+      <input type="file" name="parts" accept=".csv" required />
+    </div>
+    <div class="row">
+      <label>Product List (.csv)</label><br>
+      <input type="file" name="products" accept=".csv" required />
+    </div>
+    <div class="row">
+      <label>Buyout Report (.xlsx, optional)</label><br>
+      <input type="file" name="buyout" accept=".xlsx,.xlsm,.xls" />
+    </div>
+    <button class="btn" type="submit">Create & Compute</button>
+  </form>
+{% endblock %}
+

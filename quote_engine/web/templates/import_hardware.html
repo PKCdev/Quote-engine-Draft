@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Import Hardware Prices (Lincoln Sentry HTML)</h1>
+  <form action="/catalogs/hardware/import" method="post" enctype="multipart/form-data">
+    <div class="row">
+      <label>Saved HTML file</label><br>
+      <input type="file" name="html_file" accept=".html,.htm" required />
+    </div>
+    <button class="btn" type="submit">Import</button>
+  </form>
+
+  {% if imported is defined %}
+  <p><strong>Imported {{ imported }} items</strong> from the uploaded HTML. The prices were converted to ex‑GST.</p>
+  {% if items %}
+  <h3>Sample</h3>
+  <table>
+    <tr><th>Description</th><th>Unit Price (inc‑GST)</th><th>Pack</th></tr>
+    {% for it in items %}
+      <tr><td>{{ it.description }}</td><td>{{ it.unit_price_aud_inc_gst }}</td><td>{{ it.pack_size }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% endif %}
+{% endblock %}
+

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Overhead Breakdown</h1>
+  <p>The monthly overhead applied to every project is calculated from the enabled items below. Toggle marketing costs as needed; they are excluded when switched off.</p>
+
+  <div class="card" style="padding:12px; margin-bottom:16px; border:1px solid #ddd; border-radius:4px;">
+    <p><strong>Baseline (enabled items):</strong> {{ '%.2f'|format(summary.enabled_total) }} AUD/month</p>
+    <p><strong>Core overhead (without optional marketing):</strong> {{ '%.2f'|format(core_total) }} AUD/month</p>
+    <p><strong>Marketing enabled:</strong> {{ '%.2f'|format(summary.optional_enabled_total) }} AUD of {{ '%.2f'|format(summary.optional_possible_total) }} available</p>
+    <form action="/overhead/update-settings" method="post" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+      <label>Internal hours per month <input name="internal_hours" type="number" step="1" min="1" value="{{ summary.internal_hours }}" /></label>
+      <button class="btn" type="submit">Save internal hours</button>
+    </form>
+  </div>
+
+  {% for cat_key, cat in summary.categories.items() %}
+    <h2>{{ cat.label }}</h2>
+    <table>
+      <tr><th>Name</th><th>Monthly (AUD)</th><th>Notes</th><th>Optional</th><th>Total</th><th>Action</th></tr>
+      {% for item in cat['items'] %}
+      <tr>
+        <form action="/overhead/update-item" method="post" style="display:contents;">
+          <td>
+            <input type="hidden" name="category" value="{{ cat_key }}" />
+            <input type="hidden" name="item_id" value="{{ item.id }}" />
+            {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+            <input name="name" type="text" value="{{ item.name }}" style="width:100%;" />
+          </td>
+          <td><input name="monthly_aud" type="number" step="0.01" value="{{ '%.2f'|format(item.monthly_aud) }}" style="width:8em;" /></td>
+          <td><input name="notes" type="text" value="{{ item.notes }}" style="width:100%;" /></td>
+          <td style="text-align:center;">
+            {% if item.optional %}
+              <label style="display:flex; gap:4px; align-items:center; justify-content:center;">
+                <input type="checkbox" name="enabled" value="1" {% if item.enabled %}checked{% endif %} /> Include
+              </label>
+            {% else %}
+              <span>Always</span>
+            {% endif %}
+          </td>
+          <td>{{ '%.2f'|format(item.monthly_aud if (not item.optional or item.enabled) else 0.0) }}</td>
+          <td><button class="btn" type="submit">Save</button></td>
+        </form>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="4" style="text-align:right"><strong>Category total (enabled)</strong></td>
+        <td><strong>{{ '%.2f'|format(cat.enabled_total) }}</strong></td>
+        <td></td>
+      </tr>
+    </table>
+  {% endfor %}
+
+  <h2>Add Overhead Item</h2>
+  <form action="/overhead/add" method="post" style="display:grid; gap:8px; max-width:520px;">
+    {% if current_project %}<input type="hidden" name="project" value="{{ current_project }}" />{% endif %}
+    <label>Name <input name="name" type="text" required /></label>
+    <label>Monthly cost (AUD) <input name="monthly_aud" type="number" step="0.01" required /></label>
+    <label>Notes <input name="notes" type="text" /></label>
+    <label>Category
+      <select name="category">
+        {% for key, cat in overhead.categories.items() %}
+          <option value="{{ key }}">{{ cat.label }}</option>
+        {% endfor %}
+        <option value="other">Other overheads</option>
+      </select>
+    </label>
+    <label><input type="checkbox" name="optional" value="1" /> Optional (toggleable)</label>
+    <label><input type="checkbox" name="enabled" value="1" checked /> Enabled</label>
+    <button class="btn" type="submit">Add overhead</button>
+  </form>
+{% endblock %}

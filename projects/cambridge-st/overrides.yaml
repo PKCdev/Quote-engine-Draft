@@ -1,0 +1,145 @@
+client:
+  name: Izabela Katafoni
+  title: Studio Director
+  phone: "0429 685 928"
+  email: izabela@studioorigami.com.au
+  address: 17 Oxley Rd, Darlington
+  website: https://www.studioorigami.com.au
+company:
+  name: Perth Kitchen Crafters
+  phone: "0411 578 898"
+  abn: "27 617 881 678"
+  address: "11 Protea St, Greenwood 6024"
+project:
+  name: Cambridge St Renovation Project
+  site_address: Cambridge St
+  date_issued: "2025-09-16"
+
+materials:
+  - material: 9mm Bending MDF Cross Cut
+    thickness: 9mm
+    sheet_size: 1210 x 2410
+    qty: 1
+    unit_cost: 65
+  - material: Black Woodmatt 18mm MDF
+    thickness: 18.4mm
+    sheet_size: 1810 x 3620
+    qty: 7
+    unit_cost: 450
+  - material: Prime Oak Woodmatt 18mm MDF
+    thickness: 18.4mm
+    sheet_size: 1810 x 3620
+    qty: 11
+    unit_cost: 450
+  - material: White Melamine 16mm
+    thickness: 16.4mm
+    sheet_size: 1810 x 3630
+    qty: 21
+    unit_cost: 125
+  - material: Black Woodmatt Laminate
+    qty: 1
+    unit_cost: 300
+
+hardware:
+  - name: Blum Aventos HF - Lift Mechanism
+    qty: 1
+    unit_cost: 285
+  - name: Blum Aventos HF Cover Plate - White
+    qty: 1
+    unit_cost: 45
+  - name: Blum Aventos HF Lever Arm Set
+    qty: 1
+    unit_cost: 125
+  - name: Heavy Duty Runners 700mm (2 pairs)
+    qty: 2
+    unit_cost: 100
+  - name: Heavy Duty Runners 1000mm (2 pairs)
+    qty: 2
+    unit_cost: 100
+  - name: Finista Drawer Kits (Various sizes)
+    qty: 47
+    unit_cost: 75
+  - name: Cabinetry hardware (feet, hinges, etc...)
+    qty: 1
+    unit_cost: 3540
+  - name: Kosara Soft Close Waste Bin
+    qty: 1
+    unit_cost: 400
+  - name: LED Under Panel Lighting - Kitchen
+    qty: 1
+    unit_cost: 500
+  - name: Screws, Glass Door Track & Misc
+    qty: 1
+    unit_cost: 828.75
+
+buyout:
+  - material: 12mm Porcelain
+    qty: 3
+    unit: sq.m
+    rate_per_unit: null
+    total_cost: null
+    status: tbq
+  - material: 20mm Laminated Benchtop Polytec
+    qty: 4
+    unit: sq.m
+    rate_per_unit: 200
+    status: included
+  - material: 70mm Foam Seat Bench
+    qty: 2
+    unit: sq.m
+    rate_per_unit: null
+    total_cost: null
+    status: tbq
+
+labor:
+  - category: cad
+    hours: 30
+    rate: 120
+    description: Design, drawings, cut lists
+  - category: cnc
+    hours: 16
+    rate: 312.5
+    description: Provence Brothers - cutting, edging, flat packing
+  - category: handling
+    hours: 20
+    rate: 110
+    description: Material receiving, sorting, prep
+  - category: assembly
+    hours: 60
+    rate: 110
+    description: Cabinet assembly in workshop
+  - category: install
+    hours: 64
+    rate: 95
+    description: On-site installation + delivery (2 workers, 2 days)
+
+rooms:
+  - code: J01
+    name: Kitchen
+    products:
+      - { index: "#1.01", name: "Base 2 Drawer", dimensions: "1,035×888×580" }
+      - { index: "#1.02", name: "Base 3 Drawer", dimensions: "452×888×580" }
+      - { index: "#1.03", name: "Pantry with 5 Inner Drawers", dimensions: "600×2,700×580" }
+  - code: J03
+    name: Lounge Drawers
+    products:
+      - { index: "#3.01", name: "Base 1 Drawer Heavy Duty 1000mm", dimensions: "1,562×432×1,400" }
+      - { index: "#3.02", name: "Countertop Straight", dimensions: "3,165×18×1,420" }
+
+notes_inclusions:
+  - Rounded ends cabinet for island as specified
+
+notes_exclusions:
+  - 12mm Porcelain stone benchtops (TBQ)
+  - 70mm Foam seat cushions (TBQ)
+
+optional_upgrades:
+  - name: Rounded door cabinet upgrade
+    price: 1800
+
+adjustments:
+  design_fee_percent: 7
+  delivery: 0
+  contingency_percent: 0
+  discount_percent: 0
+

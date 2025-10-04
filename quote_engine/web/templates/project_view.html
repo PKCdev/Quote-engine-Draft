@@ -1,0 +1,611 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>{{ project.name }}</h1>
+
+  <div id="sticky-actions" style="position: sticky; top: 0; z-index: 50; background: #fff; padding: 8px 0; border-bottom: 1px solid #e5e7eb; display:flex; gap:8px; align-items:center; justify-content:flex-start;">
+    <a class="btn" href="/projects/{{ project.slug }}/quote?regen=1" target="_blank">View Client Quote</a>
+    <button class="btn" type="button" onclick="submitRecalcAll()">Recalculate All</button>
+  </div>
+
+  <a id="adjustments"></a>
+  <h2>Adjustments</h2>
+  <form id="form-adjust" action="/projects/{{ project.slug }}/recalc" method="post">
+    <div class="row">
+      <label>Extra Sheet Waste (fraction)</label><br>
+      <input name="extra_sheet_waste" type="number" step="0.01" value="{{ summary.overrides.extra_sheet_waste | default(policy.extra_sheet_waste | default(0, true), true) }}" />
+    </div>
+    <div class="row">
+      <label>Drafting Hours</label><br>
+      <input name="drafting_hours" type="number" step="0.1" value="{{ summary.overrides.defaults.drafting_hours | default(rates.defaults.drafting_hours, true) }}" />
+    </div>
+    <div class="row">
+      <label>PM/Client-Facing Hours</label><br>
+      <input name="pm_hours" type="number" step="0.1" value="{{ summary.overrides.defaults.pm_hours | default(rates.defaults.pm_hours, true) }}" />
+    </div>
+    <div class="row">
+      <label>Install Hours (total)</label><br>
+      <input name="install_hours" type="number" step="0.1" value="{{ summary.overrides.defaults.install_hours | default(rates.defaults.install_hours, true) }}" />
+    </div>
+    <h3>Finger Pull (quick)</h3>
+    <div class="row">
+      <input type="hidden" name="fp_apply_doors" value="0" />
+      <label><input type="checkbox" name="fp_apply_doors" value="1" {% if (summary.overrides.finger_pull.apply_doors if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.apply_doors is defined else true) %}checked{% endif %} /> Apply to Base Doors</label>
+      <input type="hidden" name="fp_apply_drawers" value="0" />
+      <label><input type="checkbox" name="fp_apply_drawers" value="1" {% if (summary.overrides.finger_pull.apply_drawers if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.apply_drawers is defined else true) %}checked{% endif %} /> Apply to Base Drawers</label>
+    </div>
+    <div class="row">
+      <label>Tax wedge %</label><br>
+      <input name="income_tax_percent" type="number" step="0.1" value="{{ (summary.overrides.policy.income_tax_percent if summary.overrides and summary.overrides.policy and summary.overrides.policy.income_tax_percent is defined else (policy.income_tax_percent | default(0, true))) }}" />
+    </div>
+    <div class="row">
+      <label>My hourly rate (AUD/h)</label><br>
+      <input name="my_rate_per_hour" type="number" step="1" value="{{ (summary.overrides.rates.my_rate_per_hour if summary.overrides and summary.overrides.rates and summary.overrides.rates.my_rate_per_hour is defined else (rates.my_rate_per_hour or 95)) }}" />
+    </div>
+    <div class="row">
+      <label>Margin (fraction)</label><br>
+      <input name="target_margin" type="number" step="0.01" value="{{ summary.overrides.policy.target_margin if summary.overrides and summary.overrides.policy and summary.overrides.policy.target_margin is defined else (policy.target_margin or 0.3) }}" />
+    </div>
+    <h3>Allowances & Surcharges</h3>
+    <div class="row">
+      <label>Allowances (Truck, Consumables, Disposal) — ex-GST (AUD)</label><br>
+      <input name="allowances_flat" type="number" step="0.01" value="{{ (summary.overrides.policy.allowances.flat_aud_ex_gst if summary.overrides and summary.overrides.policy and summary.overrides.policy.allowances else policy.allowances.flat_aud_ex_gst) or 0 }}" />
+    </div>
+    <div class="row">
+      <label>Warranty %</label>
+      <input name="warranty_percent" type="number" step="0.1" value="{{ (summary.overrides.policy.surcharges.warranty_percent if summary.overrides and summary.overrides.policy and summary.overrides.policy.surcharges else policy.surcharges.warranty_percent) or 0 }}" />
+      <label>Contingency %</label>
+      <input name="contingency_percent" type="number" step="0.1" value="{{ (summary.overrides.policy.surcharges.contingency_percent if summary.overrides and summary.overrides.policy and summary.overrides.policy.surcharges else policy.surcharges.contingency_percent) or 0 }}" />
+      <label>Merchant %</label>
+      <input name="merchant_percent" type="number" step="0.1" value="{{ (summary.overrides.policy.surcharges.merchant_percent if summary.overrides and summary.overrides.policy and summary.overrides.policy.surcharges else policy.surcharges.merchant_percent) or 0 }}" />
+    </div>
+    <button class="btn" type="submit">Recalculate</button>
+  </form>
+
+  <details>
+    <summary><strong>Advanced Tuning</strong></summary>
+    <form id="form-tuning" action="/projects/{{ project.slug }}/recalc#adjustments" method="post">
+      <h3>Assembly (minutes)</h3>
+      <div class="row">Base min per m² <input name="asm_base_m2" type="number" step="0.01" value="{{ rates.assembly.base_minutes_per_m2 or 44.44 }}" /></div>
+      <div class="row">Min minutes per product <input name="asm_min" type="number" step="0.1" value="{{ rates.assembly.min_minutes_per_product or 10 }}" /></div>
+      <div class="row">Workshop setout min/product <input name="asm_setout_min" type="number" step="0.1" value="{{ rates.assembly.setout_minutes_per_product or 5 }}" /></div>
+      <div class="row">Adder drawer <input name="add_drawer" type="number" step="0.1" value="{{ assembly_rules.minutes_adders.drawer or 20 }}" />
+        Inner <input name="add_inner_drawer" type="number" step="0.1" value="{{ assembly_rules.minutes_adders.inner_drawer or 20 }}" />
+        Hinge <input name="add_hinge" type="number" step="0.1" value="{{ assembly_rules.minutes_adders.hinge or 1 }}" />
+        Foot <input name="add_foot" type="number" step="0.1" value="{{ assembly_rules.minutes_adders.foot or 1 }}" />
+        Bin <input name="add_bin" type="number" step="0.1" value="{{ assembly_rules.minutes_adders.bin or 25 }}" />
+        Hinges/door <input name="hinges_per_door" type="number" step="1" value="{{ assembly_rules.minutes_adders.hinges_per_door or 2 }}" />
+      </div>
+
+      <h3>Install (minutes)</h3>
+      <div class="row">Base min per m² <input name="inst_base_m2" type="number" step="0.01" value="{{ rates.install.base_minutes_per_m2 or 30 }}" /></div>
+      <div class="row">Min minutes per product <input name="inst_min" type="number" step="0.1" value="{{ rates.install.min_minutes_per_product or 5 }}" /></div>
+      <div class="row">Adder drawer <input name="i_add_drawer" type="number" step="0.1" value="{{ assembly_rules.install_minutes_adders.drawer or 5 }}" />
+        Inner <input name="i_add_inner_drawer" type="number" step="0.1" value="{{ assembly_rules.install_minutes_adders.inner_drawer or 5 }}" />
+        Hinge <input name="i_add_hinge" type="number" step="0.1" value="{{ assembly_rules.install_minutes_adders.hinge or 2 }}" />
+        Foot <input name="i_add_foot" type="number" step="0.1" value="{{ assembly_rules.install_minutes_adders.foot or 1 }}" />
+        Bin <input name="i_add_bin" type="number" step="0.1" value="{{ assembly_rules.install_minutes_adders.bin or 10 }}" />
+      </div>
+
+      <h3>Rates</h3>
+      <div class="row">Shop <input name="shop" type="number" step="1" value="{{ rates.labor_rates.shop }}" />
+        Drafting <input name="drafting" type="number" step="1" value="{{ rates.labor_rates.drafting }}" />
+        PM <input name="pm" type="number" step="1" value="{{ rates.labor_rates.pm }}" />
+        Installer billed <input name="installer_billed" type="number" step="1" value="{{ rates.labor_rates.installer_billed }}" /></div>
+
+      <h3>Machines & CNC</h3>
+      <p class="note">Area-based model in use: CNC hours = total CNC area (m²) ÷ sqm/hour. Panel saw hours = sheets_on_saw × minutes/sheet ÷ 60.</p>
+      <div class="row">CNC rental (AUD/h) <input name="cnc" type="number" step="1" value="{{ rates.machine_rental.cnc or rates.machine_rates.cnc }}" />
+        Edgebander rental (AUD/h) <input name="edgebander" type="number" step="1" value="{{ rates.machine_rental.edgebander or rates.machine_rates.edgebander or 120 }}" />
+        Panel saw rental (AUD/h) <input name="panel_saw" type="number" step="1" value="{{ rates.machine_rental.panel_saw or rates.machine_rates.panel_saw or 120 }}" /></div>
+      <div class="row">CNC client adder (AUD/h) <input name="cnc_adder" type="number" step="1" value="{{ rates.machine_adder.cnc or 0 }}" />
+        Edgebander client adder (AUD/h) <input name="edb_adder" type="number" step="1" value="{{ rates.machine_adder.edgebander or 0 }}" /></div>
+      <div class="row">Contingency factor <input name="contingency_factor" type="number" step="0.05" value="{{ rates.contingency_factor or 1.0 }}" /></div>
+      <div class="row">Tax wedge % <input name="income_tax_percent" type="number" step="0.1" value="{{ (summary.overrides.policy.income_tax_percent if summary.overrides and summary.overrides.policy and summary.overrides.policy.income_tax_percent is defined else (policy.income_tax_percent or 0)) }}" /></div>
+
+      <h3>Delivery</h3>
+      <div class="row">Truck capacity (m³) <input name="delivery_truck_capacity_cbm" type="number" step="0.1" value="{{ rates.delivery.truck_capacity_cbm if rates.delivery else 15.0 }}" /></div>
+      <div class="row">Load hours per full (15 m³) <input name="delivery_load_hours_per_full" type="number" step="0.1" value="{{ rates.delivery.load_hours_per_full if rates.delivery else 3.0 }}" />
+        Unload hours per trip <input name="delivery_unload_hours_per_trip" type="number" step="0.1" value="{{ rates.delivery.unload_hours_per_trip if rates.delivery else 0.5 }}" /></div>
+      <div class="row">Travel hours per trip <input name="delivery_travel_hours_per_trip" type="number" step="0.1" value="{{ rates.delivery.travel_hours_per_trip if rates.delivery else 1.0 }}" />
+        Admin (rental/return) hours <input name="delivery_rental_admin_hours" type="number" step="0.1" value="{{ rates.delivery.rental_admin_hours if rates.delivery else 1.0 }}" /></div>
+      <div class="row">Delivery rate (AUD/h) <input name="delivery_rate" type="number" step="1" value="{{ rates.delivery.delivery_rate if rates.delivery and rates.delivery.delivery_rate is defined else (rates.labor_rates.handling or 110) }}" /></div>
+      <h3>Finger Pull</h3>
+      <div class="row">
+        <input type="hidden" name="fp_apply_doors" value="0" />
+        <label><input type="checkbox" name="fp_apply_doors" value="1" {% if (summary.overrides.finger_pull.apply_doors if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.apply_doors is defined else true) %}checked{% endif %} /> Apply to Base Doors</label>
+        <input type="hidden" name="fp_apply_drawers" value="0" />
+        <label><input type="checkbox" name="fp_apply_drawers" value="1" {% if (summary.overrides.finger_pull.apply_drawers if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.apply_drawers is defined else true) %}checked{% endif %} /> Apply to Base Drawers</label>
+      </div>
+      <div class="row">Override doors count <input name="fp_override_doors" type="number" step="1" value="{{ summary.overrides.finger_pull.override_doors if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.override_doors is defined else '' }}" />
+        Subtract doors <input name="fp_subtract_doors" type="number" step="1" value="{{ summary.overrides.finger_pull.subtract_doors if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.subtract_doors is defined else 0 }}" /></div>
+      <div class="row">Override drawers count <input name="fp_override_drawers" type="number" step="1" value="{{ summary.overrides.finger_pull.override_drawers if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.override_drawers is defined else '' }}" />
+        Subtract drawers <input name="fp_subtract_drawers" type="number" step="1" value="{{ summary.overrides.finger_pull.subtract_drawers if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.subtract_drawers is defined else 0 }}" /></div>
+      <div class="row">Per-part fee (AUD) <input name="fp_per_part_fee" type="number" step="0.1" value="{{ (summary.overrides.finger_pull.per_part_fee if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.per_part_fee is defined else (rates.finger_pull.per_part_fee or 15.5)) }}" />
+        Pickup fee (AUD/job) <input name="fp_pickup_fee" type="number" step="0.1" value="{{ (summary.overrides.finger_pull.pickup_fee if summary.overrides and summary.overrides.finger_pull and summary.overrides.finger_pull.pickup_fee is defined else (rates.finger_pull.pickup_fee or 35)) }}" /></div>
+      <div class="row">Assembly minutes per FP <input name="fp_asm_min" type="number" step="0.1" value="{{ (rates.finger_pull.assembly_minutes_per_part or 10) }}" />
+        Install minutes per FP <input name="fp_inst_min" type="number" step="0.1" value="{{ (rates.finger_pull.install_minutes_per_part or 2) }}" /></div>
+      <div class="row">CNC sqm/hour <input name="cnc_sqm_per_hour" type="number" step="0.1" value="{{ rates.cnc_area.sqm_per_hour or 10 }}" />
+        Panel saw minutes/sheet <input name="panel_saw_minutes_per_sheet" type="number" step="1" value="{{ rates.panel_saw.minutes_per_sheet or 15 }}" /></div>
+
+      <h3>Edgeband</h3>
+      <div class="row">Minutes per edge <input name="edb_min_per_edge" type="number" step="0.1" value="{{ rates.edgeband.minutes_per_edge or 1.0 }}" />
+        Minutes per m <input name="edb_min_per_m" type="number" step="0.1" value="{{ rates.edgeband.minutes_per_m or 0 }}" />
+        Setup minutes <input name="edb_setup_min" type="number" step="0.1" value="{{ rates.edgeband.setup_minutes or 0 }}" /></div>
+
+      <h3>Overhead & Team</h3>
+      <div class="row">Overhead monthly (AUD)
+        <input type="number" step="1" value="{{ rates.overhead.monthly_aud }}" readonly disabled style="width:8em;" />
+        <span style="margin-left:8px;">Manage via <a href="/overhead{% if current_project %}?project={{ current_project }}{% endif %}">Overhead panel</a></span>
+      </div>
+      <div class="row">Internal hours
+        <input type="number" step="1" value="{{ rates.overhead.internal_hours }}" readonly disabled style="width:6em;" />
+      </div>
+      <div class="row">Team (fractions normalized to 1.0): two-person <input name="team_two_frac" type="number" step="0.05" value="{{ rates.install_team.two_person_fraction }}" />
+        one-person <input name="team_one_frac" type="number" step="0.05" value="{{ rates.install_team.one_person_fraction }}" /></div>
+      <div class="row">Two-person crew rate (AUD/h) <input name="team_two_rate" type="number" step="1" value="{{ rates.install_team.two_person_rate }}" />
+        One-person rate (AUD/h) <input name="team_one_rate" type="number" step="1" value="{{ rates.install_team.one_person_rate }}" /></div>
+
+      <h3>Subcontractors</h3>
+      <div class="row">Markup % <input name="subs_markup" type="number" step="0.1" value="{{ rates.subcontractors.markup_percent or 0 }}" /></div>
+
+      <button class="btn" type="submit">Recalculate</button>
+    </form>
+  </details>
+
+  <script>
+    function submitRecalcAll() {
+      try {
+        const adj = document.getElementById('form-adjust');
+        const tune = document.getElementById('form-tuning');
+        if (!adj) return;
+        // Remove previously cloned fields
+        adj.querySelectorAll('.js-cloned-from-tuning').forEach(n => n.remove());
+        if (tune) {
+          const els = tune.querySelectorAll('input, select, textarea');
+          els.forEach(el => {
+            if (!el.name) return;
+            let hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = el.name;
+            hidden.className = 'js-cloned-from-tuning';
+            if (el.type === 'checkbox') {
+              hidden.value = el.checked ? (el.value || '1') : '0';
+            } else if (el.type === 'radio') {
+              if (!el.checked) return; // copy only selected radio
+              hidden.value = el.value;
+            } else {
+              hidden.value = el.value;
+            }
+            adj.appendChild(hidden);
+          });
+        }
+        adj.submit();
+      } catch (e) {
+        console.error('Recalc submit failed', e);
+      }
+    }
+  </script>
+
+  <h2>Snapshot</h2>
+  {% set totals = summary.price %}
+  <table>
+    <tr><th>Subtotal (ex-GST)</th><td>{{ totals.subtotal_ex_gst }}</td></tr>
+    <tr><th>Price (ex-GST)</th><td>{{ totals.price_ex_gst }}</td></tr>
+    <tr><th>GST</th><td>{{ totals.gst }}</td></tr>
+    <tr><th>Total (inc-GST)</th><td><strong>{{ totals.total_inc_gst }}</strong></td></tr>
+  </table>
+
+  <h2>Drivers</h2>
+  <table>
+    <tr><th>Category</th><th>Cost (ex-GST)</th></tr>
+    <tr><td>Materials</td><td>{{ summary.totals.materials }}</td></tr>
+    <tr><td>Edgeband</td><td>{{ summary.totals.edgeband }}</td></tr>
+    <tr><td>Hardware</td><td>{{ summary.totals.hardware }}</td></tr>
+    <tr><td>CNC</td><td>{{ summary.totals.cnc }}</td></tr>
+    <tr><td>Panel Saw</td><td>{{ summary.totals.panel_saw }}</td></tr>
+    <tr><td>Assembly</td><td>{{ summary.totals.assembly }}</td></tr>
+    <tr><td>Install</td><td>{{ summary.totals.install }}</td></tr>
+    <tr><td>Finger Pull</td><td>{{ summary.totals.finger_pull | default(0, true) }}</td></tr>
+    <tr><td>Delivery</td><td>{{ summary.totals.delivery | default(0, true) }}</td></tr>
+    <tr><td>Overhead</td><td>{{ summary.totals.overhead }}</td></tr>
+  </table>
+
+  <h2>Time Estimates (hours)</h2>
+  <table>
+    <tr><th>Category</th><th>Hours</th></tr>
+    {% set dhrs = (summary.overrides.defaults.drafting_hours if summary.overrides and summary.overrides.defaults and summary.overrides.defaults.drafting_hours is defined else (rates.defaults.drafting_hours or 0)) %}
+    {% set pmhrs = (summary.overrides.defaults.pm_hours if summary.overrides and summary.overrides.defaults and summary.overrides.defaults.pm_hours is defined else (rates.defaults.pm_hours or 0)) %}
+    <tr><td>Drafting</td><td>{{ '%.2f'|format(dhrs) }}</td></tr>
+    <tr><td>PM/Client-Facing</td><td>{{ '%.2f'|format(pmhrs) }}</td></tr>
+    <tr><td>CNC</td><td>{{ (summary.time.cnc if summary.time is defined else 0) }}</td></tr>
+    <tr><td>Panel Saw</td><td>{{ (summary.time.panel_saw if summary.time is defined else 0) }}</td></tr>
+    <tr><td>Edgeband</td><td>{{ (summary.time.edgeband if summary.time is defined else 0) }}</td></tr>
+    <tr><td>Assembly</td><td>{{ summary.assembly.hours }}</td></tr>
+    <tr><td>Install</td><td>{{ summary.install.hours }}</td></tr>
+    <tr><td>Delivery</td><td>{{ (summary.time.delivery if summary.time is defined else 0) }}</td></tr>
+  </table>
+
+  <h3>Time in Days/Weeks</h3>
+  {% set asmh = (summary.assembly.hours or 0) %}
+  {% set insth = (summary.install.hours or 0) %}
+  {% set delh = (summary.time.delivery if summary.time is defined else 0) %}
+  {% set tot_site_h = asmh + insth + delh %}
+  <table>
+    <tr>
+      <th>Category</th>
+      <th>Hours</th>
+      <th>Days @8h</th>
+      <th>Weeks @8h (5d)</th>
+      <th>Days @10h</th>
+      <th>Weeks @10h (5d)</th>
+    </tr>
+    {% for name, h in [("Assembly", asmh), ("Install", insth), ("Delivery", delh), ("Total (site)", tot_site_h)] %}
+    <tr>
+      <td>{{ name }}</td>
+      <td>{{ '%.2f'|format(h) }}</td>
+      <td>{{ '%.2f'|format(h / 8.0) }}</td>
+      <td>{{ '%.2f'|format((h / 8.0) / 5.0) }}</td>
+      <td>{{ '%.2f'|format(h / 10.0) }}</td>
+      <td>{{ '%.2f'|format((h / 10.0) / 5.0) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Loading & Delivery</h2>
+  {% set delivery = summary.delivery if summary.delivery is defined else None %}
+  {% if delivery %}
+  <table>
+    <tr><th>Total volume (m³)</th><td>{{ delivery.cbm }}</td></tr>
+    <tr><th>Truck capacity (m³)</th><td>{{ delivery.capacity_cbm }}</td></tr>
+    <tr><th>Estimated trips</th><td>{{ delivery.trips }}</td></tr>
+  </table>
+  <table>
+    <tr><th>Phase</th><th>Hours</th></tr>
+    <tr><td>Load (workshop)</td><td>{{ delivery.hours.load }}</td></tr>
+    <tr><td>Travel</td><td>{{ delivery.hours.travel }}</td></tr>
+    <tr><td>Unload (onsite)</td><td>{{ delivery.hours.unload }}</td></tr>
+    <tr><td>Admin (rental/return)</td><td>{{ delivery.hours.admin }}</td></tr>
+    <tr><th>Total</th><th>{{ delivery.hours.total }}</th></tr>
+  </table>
+  <p class="note">Delivery cost uses handling rate {{ delivery.rate }} AUD/h. Tune parameters under Advanced Tuning.</p>
+  {% else %}
+  <p class="note">Delivery has not been computed yet. Click Recalculate to generate loading & delivery estimates.</p>
+  {% endif %}
+
+  <h2>Hardware Prices</h2>
+  <table>
+    <tr><th>Description</th><th>Catalog Key</th><th>Qty</th><th>Unit Price</th><th>Pack</th><th>Packs</th><th>Line Total</th></tr>
+    {% for hw in hardware_summary['items'] %}
+    <tr>
+      <td>{{ hw.description }}</td>
+      <td>{{ hw.key }}</td>
+      <td>{{ hw.qty }}</td>
+      <td>
+        <form action="/catalogs/hardware/set_price" method="post" style="display:flex; gap:4px; align-items:center;">
+          <input type="hidden" name="name" value="{{ hw.key }}" />
+          <input type="hidden" name="project" value="{{ project.slug }}" />
+          <input name="unit_price" type="number" step="0.01" value="{{ '%.2f'|format((hw.unit_price or 0) | float) }}" style="width:7em;" />
+          <button class="btn" type="submit">Save</button>
+        </form>
+      </td>
+      <td>{{ hw.pack_size }}</td>
+      <td>{{ hw.packs }}</td>
+      <td>{{ hw.line_total }}</td>
+    </tr>
+    {% endfor %}
+    <tr><td colspan="6" style="text-align:right"><strong>Total (est.)</strong></td><td><strong>{{ hardware_summary.total }}</strong></td></tr>
+  </table>
+
+  <h2>Finger Pull Recap</h2>
+  {% set fp = summary.finger_pull %}
+  {% if fp %}
+  <table>
+    <tr><th>Computed (Base) Doors</th><td>{{ fp.computed.doors }}</td></tr>
+    <tr><th>Computed (Base) Drawers</th><td>{{ fp.computed.drawers }}</td></tr>
+    <tr><th>Applied Doors</th><td>{{ fp.applied.doors }}</td></tr>
+    <tr><th>Applied Drawers</th><td>{{ fp.applied.drawers }}</td></tr>
+    <tr><th>Total FP parts</th><td>{{ fp.total_parts }}</td></tr>
+    <tr><th>Additional assembly hours (FP)</th><td>{{ fp.asm_hours }}</td></tr>
+    <tr><th>Additional install hours (FP)</th><td>{{ fp.inst_hours }}</td></tr>
+    <tr><th>Per-part fee</th><td>{{ fp.per_part_fee }}</td></tr>
+    <tr><th>Pickup fee</th><td>{{ fp.pickup_fee }}</td></tr>
+    <tr><th>FP total cost</th><td>{{ fp.cost }}</td></tr>
+    <tr><th>EB edges removed</th><td>{{ fp.edges_removed }}</td></tr>
+  </table>
+  {% else %}
+  <p class="note">Finger Pull has not been computed yet. Click Recalculate to update.</p>
+  {% endif %}
+
+  <h2>Profit & Time Summary (internal)</h2>
+  {% set totals = summary.totals %}
+  {% set price = summary.price %}
+  {% set fixed_expenses = (totals.materials or 0) + (totals.edgeband or 0) + (totals.hardware or 0) %}
+  {# Dynamic personal rates per activity: billed rate - overhead_per_hour * contingency #}
+  {% set oh_per_hour = (rates.overhead.monthly_aud or 0) / ((rates.overhead.internal_hours or 1)) %}
+  {% set cont = (rates.contingency_factor or 1.0) %}
+  {% set _ohc = oh_per_hour * cont %}
+  {% set _tmp = (rates.labor_rates.drafting or 0) - _ohc %}{% if _tmp < 0 %}{% set _tmp = 0 %}{% endif %}{% set dyn_drafting = _tmp %}
+  {% set _tmp = (rates.labor_rates.pm or 0) - _ohc %}{% if _tmp < 0 %}{% set _tmp = 0 %}{% endif %}{% set dyn_pm = _tmp %}
+  {% set _tmp = (rates.labor_rates.assembly or rates.labor_rates.shop or 0) - _ohc %}{% if _tmp < 0 %}{% set _tmp = 0 %}{% endif %}{% set dyn_assembly = _tmp %}
+  {% set _tmp = (rates.install_team.one_person_rate or rates.labor_rates.installer_billed or 0) - _ohc %}{% if _tmp < 0 %}{% set _tmp = 0 %}{% endif %}{% set dyn_install = _tmp %}
+  {% set _tmp = (rates.machine_adder.cnc or 0) - _ohc %}{% if _tmp < 0 %}{% set _tmp = 0 %}{% endif %}{% set dyn_cnc = _tmp %}
+  {% set _tmp = (rates.machine_adder.edgebander or 0) - _ohc %}{% if _tmp < 0 %}{% set _tmp = 0 %}{% endif %}{% set dyn_edb = _tmp %}
+  {# Hours per activity #}
+  {% set dhrs = (summary.overrides.defaults.drafting_hours if summary.overrides and summary.overrides.defaults and summary.overrides.defaults.drafting_hours is defined else (rates.defaults.drafting_hours or 0)) %}
+  {% set pmhrs = (summary.overrides.defaults.pm_hours if summary.overrides and summary.overrides.defaults and summary.overrides.defaults.pm_hours is defined else (rates.defaults.pm_hours or 0)) %}
+  {% set asmh = (summary.assembly.hours or 0) %}
+  {% set insth = (summary.install.hours or 0) %}
+  {% set cnch = (summary.time.cnc or 0) %}
+  {% set edbh = (summary.time.edgeband or 0) %}
+  {% set cnc_rental = (rates.machine_rental.cnc or rates.machine_rates.cnc or 0) %}
+  {% set edb_rental = (rates.machine_rental.edgebander or rates.machine_rates.edgebander or 0) %}
+  {% set cnc_adder = (rates.machine_adder.cnc or 0) %}
+  {% set edb_adder = (rates.machine_adder.edgebander or 0) %}
+  {% set cnc_hours = cnch %}
+  {% set edb_hours = edbh %}
+  {# Personal pay (before tax) from dynamic rates #}
+  {% set wages_total = dhrs*dyn_drafting + pmhrs*dyn_pm + asmh*dyn_assembly + insth*dyn_install + cnch*dyn_cnc + edbh*dyn_edb %}
+  {% set tax_pct = (policy.income_tax_percent or 0) / 100.0 %}
+  {% set wages_after_tax = wages_total * (1 - tax_pct) %}
+  {% set costs_total = (totals.materials or 0) + (totals.edgeband or 0) + (totals.hardware or 0) + (totals.cnc or 0) + (totals.panel_saw or 0) + (totals.assembly or 0) + (totals.install or 0) + (totals.overhead or 0) + (totals.allowances or 0) + (totals.surcharges or 0) %}
+  {% set gross_profit = (price.price_ex_gst or 0) - costs_total %}
+  {% set net_margin = gross_profit - wages_after_tax %}
+  {% set net_margin_pct = (net_margin / (price.price_ex_gst or 1)) * 100.0 %}
+  <table>
+    <tr><th>Fixed expenses (materials + edgeband + hardware)</th><td>{{ '%.2f'|format(fixed_expenses) }}</td></tr>
+    <tr><th>Tax wedge (%)</th><td>{{ '%.1f'|format(policy.income_tax_percent or 0) }}</td></tr>
+    <tr><th>Personal pay before tax (dynamic)</th><td>{{ '%.2f'|format(wages_total) }}</td></tr>
+    <tr><th>Wages after tax</th><td>{{ '%.2f'|format(wages_after_tax) }}</td></tr>
+    <tr><th>Gross profit (ex-GST)</th><td>{{ '%.2f'|format(gross_profit) }}</td></tr>
+    <tr><th>Net margin (after wages tax)</th><td>{{ '%.2f'|format(net_margin) }} ({{ '%.1f'|format(net_margin_pct) }}%)</td></tr>
+    <tr><th>Assembly days (8h/day)</th><td>{{ '%.2f'|format((summary.assembly.hours or 0) / 8.0) }}</td></tr>
+    <tr><th>Install days (8h/day)</th><td>{{ '%.2f'|format((summary.install.hours or 0) / 8.0) }}</td></tr>
+  </table>
+
+  <h3>Dynamic personal rates (info)</h3>
+  <table>
+    <tr><th>Activity</th><th>Billed rate</th><th>Overhead/h × contingency</th><th>My effective rate</th></tr>
+    <tr><td>Drafting</td><td>{{ '%.2f'|format(rates.labor_rates.drafting or 0) }}</td><td>{{ '%.2f'|format(oh_per_hour * cont) }}</td><td>{{ '%.2f'|format(dyn_drafting) }}</td></tr>
+    <tr><td>PM</td><td>{{ '%.2f'|format(rates.labor_rates.pm or 0) }}</td><td>{{ '%.2f'|format(oh_per_hour * cont) }}</td><td>{{ '%.2f'|format(dyn_pm) }}</td></tr>
+    <tr><td>Workshop (Assembly)</td><td>{{ '%.2f'|format((rates.labor_rates.assembly or rates.labor_rates.shop or 0)) }}</td><td>{{ '%.2f'|format(oh_per_hour * cont) }}</td><td>{{ '%.2f'|format(dyn_assembly) }}</td></tr>
+    <tr><td>Install (1-person)</td><td>{{ '%.2f'|format((rates.install_team.one_person_rate or rates.labor_rates.installer_billed or 0)) }}</td><td>{{ '%.2f'|format(oh_per_hour * cont) }}</td><td>{{ '%.2f'|format(dyn_install) }}</td></tr>
+    <tr><td>CNC (adder)</td><td>{{ '%.2f'|format(rates.machine_adder.cnc or 0) }}</td><td>{{ '%.2f'|format(oh_per_hour * cont) }}</td><td>{{ '%.2f'|format(dyn_cnc) }}</td></tr>
+    <tr><td>Edgeband (adder)</td><td>{{ '%.2f'|format(rates.machine_adder.edgebander or 0) }}</td><td>{{ '%.2f'|format(oh_per_hour * cont) }}</td><td>{{ '%.2f'|format(dyn_edb) }}</td></tr>
+  </table>
+
+  <h3>Machine economics (internal)</h3>
+  <table>
+    <tr><th></th><th>Hours</th><th>Rental cost/h</th><th>Rental cost</th><th>Client adder/h</th><th>Adder total</th></tr>
+    <tr><td>CNC</td><td>{{ '%.2f'|format(cnc_hours) }}</td><td>{{ '%.2f'|format(cnc_rental) }}</td><td>{{ '%.2f'|format(cnc_hours * cnc_rental) }}</td><td>{{ '%.2f'|format(cnc_adder) }}</td><td>{{ '%.2f'|format(cnc_hours * cnc_adder) }}</td></tr>
+    <tr><td>Edgebander</td><td>{{ '%.2f'|format(edb_hours) }}</td><td>{{ '%.2f'|format(edb_rental) }}</td><td>{{ '%.2f'|format(edb_hours * edb_rental) }}</td><td>{{ '%.2f'|format(edb_adder) }}</td><td>{{ '%.2f'|format(edb_hours * edb_adder) }}</td></tr>
+  </table>
+
+  <h2>Material Breakdown</h2>
+  <table>
+    <tr>
+      <th>Material</th>
+      <th>Sheets</th>
+      <th>Sheet Size</th>
+      <th>Total m²</th>
+      <th>Price/m² (ex-GST)</th>
+      <th>Cost (ex-GST)</th>
+      <th>Panel Saw</th>
+    </tr>
+    {% for it in summary.materials_breakdown['items'] %}
+    <tr>
+      <td>{{ it.material }}</td>
+      <td>{{ it.qty }}</td>
+      <td>{{ it.sheet_size }}</td>
+      <td>{{ it.area_m2 }}</td>
+      <td>
+        <form action="/catalogs/materials/set_price" method="post" style="display:flex; gap:4px; align-items:center;">
+          <input type="hidden" name="name" value="{{ it.material }}" />
+          <input type="hidden" name="project" value="{{ project.slug }}" />
+          <input name="price_per_m2" type="number" step="0.01" value="{{ '%.2f'|format((it.price_per_m2 or 0) | float) }}" style="width:7em;" />
+          <button class="btn" type="submit">Save</button>
+        </form>
+      </td>
+      <td>{{ it.cost }}</td>
+      <td>
+        <form action="/projects/{{ project.slug }}/materials/update" method="post">
+          <input type="hidden" name="material" value="{{ it.material }}" />
+          <label><input type="checkbox" name="panel_saw" {% if material_overrides.get(it.material,{}).get('panel_saw') %}checked{% endif %} onchange="this.form.submit()" /> Use Panel Saw</label>
+          <button class="btn" type="submit">Save</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td colspan="5" style="text-align:right"><strong>Totals</strong></td>
+      <td><strong>{{ summary.materials_breakdown.total }}</strong></td>
+      <td></td>
+    </tr>
+  </table>
+
+  {% if summary.edgeband_summary is defined %}
+  <h3>Edgeband by Spec</h3>
+  <table>
+    <tr><th>Spec</th><th>LM (m)</th><th>Price/m (AUD)</th><th>Cost (AUD)</th></tr>
+    {% for b in summary.edgeband_summary['items'] %}
+    <tr><td>{{ b.spec }}</td><td>{{ b.lm }}</td><td>{{ b.price_per_m }}</td><td>{{ b.cost }}</td></tr>
+    {% endfor %}
+    <tr><td style="text-align:right"><strong>Total</strong></td><td><strong>{{ summary.edgeband_summary.total_lm }}</strong></td><td></td><td><strong>{{ summary.edgeband_summary.total_cost }}</strong></td></tr>
+  </table>
+  {% if unknown_eb %}
+  <h4>Add Missing Edgeband Specs</h4>
+  <table>
+    <tr><th>Spec</th><th>Price/m</th><th>Setup</th><th>Action</th></tr>
+    {% for s in unknown_eb %}
+    <tr>
+      <form action="/projects/{{ project.slug }}/catalogs/edgeband/add-inline" method="post">
+        <td><input name="spec" value="{{ s }}" readonly style="width:100%" /></td>
+        <td><input name="price_per_m" type="number" step="0.01" value="" style="width:120px" /></td>
+        <td><input name="setup_cost" type="number" step="0.01" value="0" style="width:120px" /></td>
+        <td><button class="btn" type="submit">Add & Recalc</button></td>
+      </form>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% endif %}
+
+  <h2>Product List by Room</h2>
+  {% if products_by_room.rooms %}
+  {% for room, rows in products_by_room.rooms.items() %}
+    <h3>{{ room }}</h3>
+    <table>
+      <tr><th>#</th><th>Description</th><th>Size (W×H×D)</th><th>Assembly (h)</th><th>Install (h)</th><th>Overrides</th></tr>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.item }}</td>
+        <td>{{ r.description }}</td>
+        <td>{{ r.size }}</td>
+        <td>{{ '%.2f'|format(r.asm_h) }}</td>
+        <td>{{ '%.2f'|format(r.inst_h) }}</td>
+        <td>
+          <form action="/projects/{{ project.slug }}/product/update" method="post" style="display:inline">
+            <input type="hidden" name="item" value="{{ r.item }}" />
+            <label><input type="checkbox" name="buyout" {% if product_overrides.get(r.item,{}).get('exclude') %}checked{% endif %} onchange="this.form.submit()" /> Buyout</label>
+            &nbsp;Cx:
+            <input name="complexity" type="number" step="0.05" value="{{ product_overrides.get(r.item,{}).get('complexity',1.0) }}" style="width:80px" onchange="this.form.submit()" />
+            <button class="btn" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="3" style="text-align:right"><strong>Room Total</strong></td>
+        <td><strong>{{ '%.2f'|format(products_by_room.room_totals[room].asm_h) }}</strong></td>
+        <td><strong>{{ '%.2f'|format(products_by_room.room_totals[room].inst_h) }}</strong></td>
+      </tr>
+    </table>
+  {% endfor %}
+  {% else %}
+  <p class="note">No products detected. Ensure the Product List CSV was parsed (check headers and upload), then click Recalculate.</p>
+  {% endif %}
+  <table>
+    <tr>
+      <td colspan="3" style="text-align:right"><strong>Grand Total</strong></td>
+      <td><strong>{{ '%.2f'|format(products_by_room.grand.asm_h) }}</strong></td>
+      <td><strong>{{ '%.2f'|format(products_by_room.grand.inst_h) }}</strong></td>
+    </tr>
+  </table>
+
+  <h2>Edgeband (LM by spec)</h2>
+  <table>
+    <tr><th>Spec</th><th>LM</th></tr>
+    {% for b in summary.wos.edgeband %}
+    <tr><td>{{ b.spec }}</td><td>{{ b.lm }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Hardware (from WOS)</h2>
+  <table>
+    <tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Pack</th><th>Packs</th><th>Line Total</th></tr>
+    {% for h in hardware_summary['items'] %}
+    <tr>
+      <td>{{ h.description }}</td>
+      <td>{{ h.qty }}</td>
+      <td>{{ h.unit_price }}</td>
+      <td>{{ h.pack_size }}</td>
+      <td>{{ h.packs }}</td>
+      <td>{{ h.line_total }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td colspan="5" style="text-align:right"><strong>Total</strong></td>
+      <td><strong>{{ hardware_summary.total }}</strong></td>
+    </tr>
+  </table>
+
+  {% if unknown_materials or unknown_hardware %}
+  <h2>Missing Catalog Items</h2>
+  {% if unknown_materials %}
+    <h3>Materials not in catalog</h3>
+    <table>
+      <tr><th>Name</th><th>Price AUD/m²</th><th>Sheet W</th><th>Sheet H</th><th>Actions</th></tr>
+      {% for m in unknown_materials %}
+      <tr>
+        <form action="/projects/{{ project.slug }}/catalogs/materials/add-inline" method="post">
+          <td><input type="text" name="name" value="{{ m }}" readonly style="width:100%" /></td>
+          <td><input name="price_per_m2" type="number" step="0.01" required style="width:120px" /></td>
+          <td><input name="sheet_w" type="number" step="1" style="width:100px" /></td>
+          <td><input name="sheet_h" type="number" step="1" style="width:100px" /></td>
+          <td>
+            <button class="btn" type="submit">Add</button>
+            <a href="/catalogs/materials?name={{ m | urlencode }}" class="btn secondary">Advanced</a>
+          </td>
+        </form>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+  {% if unknown_hardware %}
+    <h3>Hardware not in catalog</h3>
+    <table>
+      <tr><th>Name</th><th>Suggest 1</th><th>Suggest 2</th><th>Suggest 3</th><th>Add Price</th></tr>
+      {% for h in unknown_hardware %}
+      <tr>
+        <td style="max-width:380px">{{ h }}</td>
+        {% set sugg = hw_suggestions.get(h, []) %}
+        {% for s in sugg %}
+          <td>
+            <form action="/projects/{{ project.slug }}/catalogs/hardware/map-alias" method="post">
+              <input type="hidden" name="source" value="{{ h }}" />
+              <input type="hidden" name="target" value="{{ s.key }}" />
+              <div><small>{{ s.key }}</small></div>
+              <div>score {{ s.score }}{% if s.price %}, ${{ s.price }} ex{% endif %}</div>
+              <button class="btn" type="submit">Map</button>
+            </form>
+          </td>
+        {% endfor %}
+        {% for i in range(3 - sugg|length) %}<td></td>{% endfor %}
+        <td>
+          <form action="/projects/{{ project.slug }}/catalogs/hardware/add-inline" method="post">
+            <input type="hidden" name="name" value="{{ h }}" />
+            <input name="unit_price" type="number" step="0.01" placeholder="Unit $ ex" style="width:110px" />
+            <input name="pack_size" type="number" step="1" value="1" style="width:60px" />
+            <button class="btn" type="submit">Add</button>
+            <a href="/catalogs/hardware?name={{ h | urlencode }}" class="btn secondary">Advanced</a>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+  {% endif %}
+
+  {% if unknown_materials or unknown_hardware %}
+  <h3>Add All at Once</h3>
+  <form action="/projects/{{ project.slug }}/catalogs/bulk_add" method="post">
+    {% if unknown_materials %}
+    <table>
+      <tr><th>Material</th><th>Price AUD/m²</th><th>Sheet W</th><th>Sheet H</th></tr>
+      {% for m in unknown_materials %}
+      <tr>
+        <td><input name="m_name" value="{{ m }}" readonly style="width:100%" /></td>
+        <td><input name="m_price" type="number" step="0.01" style="width:120px" /></td>
+        <td><input name="m_w" type="number" step="1" style="width:100px" /></td>
+        <td><input name="m_h" type="number" step="1" style="width:100px" /></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if unknown_hardware %}
+    <table>
+      <tr><th>Hardware</th><th>Unit Price AUD</th><th>Pack Size</th></tr>
+      {% for h in unknown_hardware %}
+      <tr>
+        <td><input name="h_name" value="{{ h }}" readonly style="width:100%" /></td>
+        <td><input name="h_price" type="number" step="0.01" style="width:120px" /></td>
+        <td><input name="h_pack" type="number" step="1" value="1" style="width:100px" /></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <button class="btn" type="submit">Add All</button>
+  </form>
+  {% endif %}
+
+{% endblock %}

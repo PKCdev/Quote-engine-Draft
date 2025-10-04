@@ -1,0 +1,80 @@
+internal_hours: 180.0
+categories:
+  facility:
+    label: Fixed workshop
+    items:
+    - id: lease_outgoings
+      name: Lease + outgoings
+      monthly_aud: 3483
+      notes: $38k/yr incl. GST
+      optional: false
+      enabled: true
+    - id: insurance_public_products
+      name: Insurance (Public & Products Liability $10m)
+      monthly_aud: 432
+      notes: $5,184/yr
+      optional: false
+      enabled: true
+    - id: utilities
+      name: Utilities (power, water, waste)
+      monthly_aud: 400
+      notes: variable
+      optional: false
+      enabled: true
+    - id: internet_phone
+      name: Internet/phone
+      monthly_aud: 140
+      notes: ''
+      optional: false
+      enabled: true
+  transport:
+    label: Transport & logistics
+    items:
+    - id: vehicle_hire
+      name: Vehicle hire (van + truck)
+      monthly_aud: 600
+      notes: combined
+      optional: false
+      enabled: true
+  software_admin:
+    label: Software & admin
+    items:
+    - id: microvellum
+      name: Microvellum licence
+      monthly_aud: 1028
+      notes: $1,131 incl. GST → $1,028 ex
+      optional: false
+      enabled: true
+    - id: bookkeeping
+      name: Bookkeeping
+      monthly_aud: 83
+      notes: $1,000/yr ÷ 12
+      optional: false
+      enabled: true
+  marketing:
+    label: Marketing (optional)
+    items:
+    - id: ads
+      name: Ads (Meta/Google)
+      monthly_aud: 2000
+      notes: optional lead gen
+      optional: true
+      enabled: false
+    - id: freelance_smm
+      name: Freelance SMM
+      monthly_aud: 325.0
+      notes: $75/wk
+      optional: true
+      enabled: true
+  consumables:
+    label: Workshop consumables
+    items:
+    - id: consumables_small_tools
+      name: Consumables & small tools
+      monthly_aud: 350
+      notes: ''
+      optional: false
+      enabled: true
+  other:
+    label: Other overheads
+    items: []

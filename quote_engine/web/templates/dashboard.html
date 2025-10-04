@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Projects</h1>
+  <p><a class="btn" href="/projects/new">Create New Quote</a></p>
+  <table>
+    <tr><th>Name</th><th>Quote</th></tr>
+    {% for p in projects %}
+      <tr>
+        <td><a href="/projects/{{ p.slug }}">{{ p.name }}</a></td>
+        <td>{% if p.has_quote %}<a href="/projects/{{ p.slug }}/quote">View</a>{% else %}-{% endif %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock %}
+
